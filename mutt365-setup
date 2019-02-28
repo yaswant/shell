@@ -1,0 +1,207 @@
+#!/bin/bash
+# Set-up ~/.muttrc to work via O365 smtp authentication.
+# usage: mautt365-setup <O365 App authentication code> [muttrcfile]
+#
+# creates:
+#   1. ~/.muttrc file
+#   2. backed up copy of existing file as ~/.muttrc_%FT%T.bkp
+#
+# 2018-07-30 yaswant.pradhan
+# -----------------------------------------------------------------------------
+set -e
+
+muttrc=${2:-~/.muttrc}
+user_email=$(getent passwd $USER | cut -d: -f5)@metoffice.gov.uk  # <- update
+IMAP='imaps://outlook.office365.com:993'
+SMTP="smtp://${user_email}@smtp.office365.com:587/"
+MAIL_DIR=~/Mail
+
+auth_help()
+{ # Check for O365 app authentication file for mail ---------------------------
+cat << EOF
+A. Please follow the instruction below to generate Office365 app authentication token:
+
+   1. Navigate to https://myapps.microsoft.com.
+   2. Click on the user name on the top right hand corner.
+   3. Select 'Profile' from the drop down options.
+   4. Under 'Manage account' options Click 'Additional security verification'.
+   5. Select 'App Passwords' in the heading.
+   6. Select 'create', give your new password a relevant name.
+   7. Select 'next' and copy the 16 character token somewhere safe. This 16-char
+      token is the required to correctly set-up muttrc.
+
+B. Then run: ${0##*/} <o365_app_token> [~/.muttrc]
+
+EOF
+}
+
+update_muttrc() { # Update muttrc file ----------------------------------------
+# usage: $0 authentication_token
+if [ -f "$muttrc" ]; then
+  muttrc_bkp="${muttrc}_$(date -u +%FT%T).bkp"
+  echo "${0##*/}: Backing up $muttrc -> $muttrc_bkp"
+  mv "$muttrc" "$muttrc_bkp"
+fi
+mkdir -p $MAIL_DIR
+
+cat > "$muttrc" << EOF
+##
+##  O365 Configuration
+##
+
+### Connection ----------------------------------------------------------------
+set ssl_starttls = yes                  # on servers advertising the capability
+set ssl_force_tls = yes                 # encrypt all connections to remote servers
+set timeout = 60                        # wait for input before time out
+set mail_check = 5                      # look for new mail (in seconds)
+
+### Incoming (IMAP) connection ------------------------------------------------
+set imap_user = "$user_email"
+set imap_pass = "$1"      # via  https://myapps.microsoft.com
+set imap_authenticators = "login"       # IMAP authentication method
+set folder = "${IMAP}"
+set mbox = "+INBOX"                     #
+set postponed = "+Drafts"               # draft messages
+set spoolfile = "+INBOX"                #
+set record = "+Sent Items"              #
+set imap_check_subscribed               #
+set imap_peek = yes                     # avoid marking mail as read while fetching
+set imap_idle = yes                     # use the IMAP IDLE extension to check for new mail
+unset imap_passive                      #
+
+### Outgoing (SMTP) connection ------------------------------------------------
+set realname = "$user_email"        # from real name (amend)
+set from = "$user_email"            # from emial
+set smtp_pass = "$1"      # O365 app authentication
+set smtp_authenticators = "login"       # SMTP authentication method
+set smtp_url = "${SMTP}"
+
+mailboxes
+## Do NOT change anything above ===============================================
+
+
+##
+## Optional Settings (uncomment to activate)
+## See muttrc options at http://www.mutt.org/doc/manual/
+##
+
+### Caches --------------------------------------------------------------------
+set header_cache=${MAIL_DIR}/cache      # path to cache message headers
+set message_cachedir=${MAIL_DIR}/cache  # path to cache copies of messages
+set certificate_file=${MAIL_DIR}/cert   # certificate file
+set header_cache_compress = no          # don't compress cached database
+set read_inc = 200                      # message fetch increment
+
+
+### Index ---------------------------------------------------------------------
+#set date_format = "%F %H:%M"            #
+#set index_format = "%-3C [%Z] %D %4c %2M | %-20.20F | %s"
+#set strict_threads = "yes"              #
+#set sort = reverse-threads              # primary sorting method
+#set sort_aux = reverse-date-received    # how to sort sub-threads
+#set sort_aux = date                     # date of the last message in thread
+#set sort = "threads"                    #
+#set sort_browser = "reverse-date"       #
+#set sort_aux = "last-date-received"     #
+
+
+### Pager Preview/Read --------------------------------------------------------
+#auto_view text/html                     #
+#auto_view text/calendar                 #
+#auto_view text/x-vcard                  #
+#alternative_order text/calendar text/plain text/*
+
+#ignore *                                # ignore all lines by default
+#unignore from: subject: to: cc: date:   # show header fields
+#unignore priority: importance:          # priorities should be heeded
+#hdr_order Subject From Date To Cc       #
+#my_hdr Reply-to: <alt.em@il>   # alt email to receive reply
+#set wrap = 115                          # word wrap at column
+#set nosmart_wrap                        # don't want smart wrapping
+#set smart_wrap = yes                    # want smart wrapping
+#set nomarkers                           # don't want any wrap markers
+#set pager_index_lines = 10              # number of index lines to show
+#set pager_context = 3                   # number of context lines to show
+#set pager_stop = yes                    # don't go to next message automatically
+#set menu_scroll = yes                   # scroll in menus
+#set tilde = yes                         # show tildes like in vim
+#set markers = no                        # no ugly plus signs
+#set to_chars=" +TCF "                   #
+#set quote_regexp = "^( {0,4}[>|:#%]| {0,4}[a-z0-9]+[>|]+)+"
+#set rfc2047_parameters = yes
+
+
+### Compose -------------------------------------------------------------------
+#set editor="nano -s hunspell -t +8"
+#set edit_headers                        # show headers when composing
+#set fast_reply                          # skip to compose when replying
+#set askcc                               # ask for CC:
+#set fcc_attach                          # save attachments with the body
+#set forward_format = "Fwd: %s"          # format of subject when forwarding
+#set forward_decode                      # decode when forwarding
+#set attribution = "[%d] %n:\\\n"         # format of quoting header
+#set reply_to                            # reply to Reply to: field
+#set include                             # include message in replies
+#set forward_quote                       # include message in forwards
+#set compose_format = ""                 #
+#set recall = ask-no                     # recall postponed message?
+#set mime_forward = ask-yes              # forward attachments as a separate message/rfc822 MIME part
+#set mime_forward_rest                   #
+
+
+### Misc settings -------------------------------------------------------------
+#set allow_ansi = yes                    # interpret ANSI color codes in messages
+#set use_envelope_from = yes             # avoids "userid@eldnnn" type addresses
+#set status_on_top                       # status bar on top
+#set delete = yes                        # delete marked messages on exit
+#set sendmail_wait = -1                  # don't wait around for sendmail
+#set noconfirmappend                     # just append, don't hassle me
+#set sleep_time = 0                      # speed up folders switch
+#unset mark_old                          # don't mark new unread messages as old
+#unset collapse_unread                   #
+
+
+#### Key bindings and Macros --------------------------------------------------
+#bind index - collapse-thread
+#bind index _ collapse-all
+#bind index <F5> imap-fetch-mail
+#macro index <F72> "<tag-message>"   # Shift+↓ to tag messages (def: t)
+#macro index .    "<change-folder> =INBOX"<enter>
+#macro index \Ci  "<change-folder> =INBOX"<enter>
+#macro index \Cd  "<change-folder> =Drafts"<enter>
+#macro index \Ck  "<change-folder> =Junk<quote-char> Email"<enter>
+#macro index \Cl  "<change-folder> =Lightning"<enter>
+#macro index \Ct  "<change-folder> =Sent<quote-char> Items"<enter>
+#macro index \Cx  "<change-folder> =Deleted<quote-char> Items"<enter>
+##### mark thread for deletion (Shift+Delete)
+#macro index <F119> <delete-thread><next-unread><current-middle>
+##### handle links properly before opening in UrlView (default key-binding Cb)
+#macro index,pager U "<enter-command>set pipe_decode = yes<enter><pipe-message>urlview<enter><enter-command>set pipe_decode = no<enter>""view URLs"
+##### save attachments to /downloads
+#macro attach s <save-entry><bol>/downloads/<eol>
+########### Move deleted messages into the "Deleted Items" folder
+#folder-hook . 'macro index <Delete> "<save-message>=Deleted <enter><sync-mailbox>"'
+#folder-hook . 'macro index d "<save-message>=Deleted <enter><sync-mailbox>"'
+
+EOF
+  chmod 600 "$muttrc"
+}
+
+while [[ $1 == -* ]]; do
+  case "$1" in
+    -h|--help|-\?) auth_help; exit 0;;
+    --) shift; break;;
+    -*) echo "invalid option: $1" 1>&2; exit 1;;
+  esac
+done
+O365_TOKEN="$1"
+if [[ "$O365_TOKEN" ]]; then
+  update_muttrc "$O365_TOKEN"
+else
+  echo "usage: ${0##*/} O365_app_token"
+  echo "try: ${0##*/} --help"
+  exit 1
+fi
+
+echo -e "${0##*/}: muttrc file is now set up for O365 IMAP/SMTP server."
+echo -e "Please check <$muttrc> to update any extra features.\n"

@@ -1,0 +1,50 @@
+#!/bin/bash
+# Julian Day Number from calendar date
+# date2julian YYYY-MM-DD
+# yaswant.pradhan
+
+function split_date()
+{
+   sd_1=${2:-SD_YEAR}
+   sd_2=${3:-SD_MONTH}
+   sd_3=${4:-SD_DAY}
+   sd_4=${5:-SD_HOUR}
+   sd_5=${6:-SD_MINUTE}
+   sd_6=${7:-SD_SECOND}
+   sd_7=${8:-SD_TZ}
+   case $1 in
+      .|"") shift
+            date_vars
+            set "$datestamp" "$@"
+            ;;
+   esac
+   oldIFS=$IFS
+   IFS=":-_/. $TAB$NL"
+   set -f ## To be on the safe side; it shouldn't be necessary
+   set -- $1
+   set +f
+   IFS=$oldIFS
+   [ $# -lt 3 ] && return 1
+   eval "$sd_1=\${1#0} $sd_2=\${2#0} $sd_3=\${3#0}"
+   [ $# -gt 3 ] &&
+     eval "$sd_4=\${4#0} $sd_5=\${5#0} $sd_6=\${6#0}"
+   [ $# -gt 6 ] && {
+      shift 6
+      eval "$sd_7=\$*"
+   } || true
+}
+
+
+
+TODAY=`date +%F`
+[[ $# -eq 1 ]] && date_vars=$1 || date_vars=$TODAY
+[[ ${#date_vars} -ne 10 ]] && echo -e "Date should be in CCYY-MM-DD format" && exit 1
+split_date $date_vars d2j_year d2j_month d2j_day || return 2
+
+## Calculate number of months from March
+d2j_tmpmonth=$((12 * $d2j_year + $d2j_month - 3))
+d2j_tmpyear=$(( $d2j_tmpmonth / 12))
+_DATE2JULIAN=$(( (734 * $d2j_tmpmonth + 15) / 24 -  2 * $d2j_tmpyear + \
+   $d2j_tmpyear/4 - $d2j_tmpyear/100 + $d2j_tmpyear/400 + $d2j_day + 1721119 ))
+echo $_DATE2JULIAN
+

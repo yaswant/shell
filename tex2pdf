@@ -1,0 +1,87 @@
+#!/bin/bash
+set -e
+TEMP=$(getopt -o a:khqv --long agent:,keep,help,quiet,version \
+              -n 'tex2pdf' -- "$@")
+[ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
+eval set -- "$TEMP"
+
+# -----------------------------------------------------------------------------
+version(){
+cat<<EOF
+${0##*/} 2019.02.1
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Yaswant Pradhan.
+EOF
+}
+usage(){
+cat<<EOF
+${0##*/} converts LaTeX file to PDF using a specific compiler.
+
+Usage: ${0##*/} [options] latexfile
+
+Options:
+  -a, --agent <application>   use a specific compiler to generate PDF. Default is latex, can also use latexmk, pdflatex, xelatex, lualatex.
+  -h, --help                  print this help and exit
+  -k, --keep                  keep intermediate files
+  -q, --quiet                 switch on quite mode and write log to filebase.out file instead
+  -v, --version               print version and exit
+
+Examples:
+The following command will produce mydoc.pdf using pdflatex compiler. Bibligraphy from extarnal files will be parsed correctly if all packages/styles and bibtex are installed correctly.
+  tex2pdf -a pdflatex -q mydoc.tex
+
+Report bugs to <yaswant.pradhan>
+EOF
+}
+# -----------------------------------------------------------------------------
+
+while true; do
+  case "$1" in
+    -a |--agent )   app="$2"; shift 2 ;;
+    -h |--help )    usage; exit 0 ;;
+    -k |--keep)     keep=1; shift 1 ;;
+    -q |--quiet )   quiet=1; shift 1 ;;
+    -v |--version ) version; exit 0 ;;
+    -- )            shift; break ;;
+    * )             break ;;
+  esac
+done
+
+[[ "$#" -lt 1 ]] && usage | grep -i usage && exit
+
+base=${1%.*}
+app="${app:-latex}"
+
+# check whether the app is installed
+hash $app 2>/dev/null \
+  || { echo >&2 "** $app is not installed. Aborting."; exit 1; }
+
+# echo "$app $1 && bibtex ${base}.aux && $app $1 && $app $1"
+if (( $quiet )); then
+  $app $1 &> ${base}.out \
+    && bibtex ${base}.aux &>> ${base}.out \
+    && $app $1 &>> ${base}.out \
+    && $app $1 &>> ${base}.out
+else
+  $app $1 && bibtex ${base}.aux && $app $1 && $app $1
+fi
+
+
+case $app in
+  latex|latexmk )
+    hash dvipdfmx 2>/dev/null \
+      || { echo >&2 "** dvipdfmx is not installed. Aborting."; exit 1; }
+    (( "$quiet" )) && dvipdfmx ${base}.dvi &>> ${base}.out || dvipdfmx ${base}.dvi ;
+    (( "$keep" )) || rm -f ${base}.{aux,bbl,blg,toc,dvi,log,fls,fdb_latexmk} ;
+    ;;
+  pdflatex)
+    (( "$keep" )) || rm -f ${base}.{aux,bbl,blg,toc,log} ;
+    ;;
+  lualatex|xelatex )
+    (( "$keep" )) || rm -f ${base}.{aux,bbl,blg,toc,log} ;
+    ;;
+esac

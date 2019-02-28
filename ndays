@@ -1,0 +1,32 @@
+#!/bin/bash
+# Number of days between two dates.
+#
+# usage:
+#   ndays DATE1 [DATE2]
+#
+# args:
+#   DATE1   First date (usually YYYY-mm-dd form, but can accept other forms)
+#   DATE2   Last date (default is Today)
+#
+# requires:
+#   date2julian
+#
+# yaswant.pradhan
+# -----------------------------------------------------------------------------
+
+DTOJUL=/home/h05/fra6/bin/date2julian
+case "$#" in
+    1 ) DATE1=$(date -d "$1" +%F)
+        DATE2=$(date +%F)
+        ;;
+    2 ) DATE1=$(date -d "$1" +%F)
+        DATE2=$(date -d "$2" +%F)
+        ;;
+    * ) echo -e "syntax: $(basename $0) DATE1 [DATE2]"
+        exit 2
+        ;;
+esac
+
+jd1=$($DTOJUL $DATE1)
+jd2=$($DTOJUL $DATE2)
+echo $(( jd2 - jd1 ))

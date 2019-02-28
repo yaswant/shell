@@ -1,0 +1,15 @@
+#!/bin/bash
+# short list all variables in a netcdf file
+# usage: ncls file.nc
+#
+# yaswant.pradhan 2017-11-13
+# -----------------------------------------------------------------------------
+set -e
+
+[[ $# -lt 1 ]] && echo "usage: ${0##*/} ncfile" && exit
+
+ncdump -h "$1" | grep -iw "^[[:space:]]*char\|^[[:space:]]*byte\|\
+^[[:space:]]*short\|^[[:space:]]*ushort\|^[[:space:]]*int\|\
+^[[:space:]]*uint\|^[[:space:]]*int64\|^[[:space:]]*uint64\|\
+^[[:space:]]*long\|^[[:space:]]*float\|^[[:space:]]*real\|\
+^[[:space:]]*double" | cut -d' ' -f2 | cut -d'(' -f1 | sort | nl

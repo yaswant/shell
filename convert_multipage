@@ -1,0 +1,391 @@
+#!/bin/bash
+# A wrapper to ImageMagick convert (gs) to extract multiple pages from a PSfile
+#   to image (pdf) files. Pages extracted as PDF can be joined together as a
+#   single file using -j (or --joinpdf) keyword
+#
+# Requires:
+#     psselect, convert, composite
+#
+# History:
+# Oct-2010  Yaswant Pradhan v0.1
+# Jan-2012  Added --rotate (-R) option. v1.0 beta YP.
+# Feb-2012  Added odd/even page selection. v1.0 YP.
+#           Added dither option for gif outputs (256 colours). YP.
+# Oct-2012  Added PS optimisation. YP.
+# Oct 2013  Added logo and page margin trimming option. YP.
+# Oct 2013  Added pdf conversion option. YP.
+# Mar 2015  Added PNG compression (b8) option. YP.
+# May 2017  Bug fix. Append user name to CMTMP directory to avoid multiple
+#           users sharing same path at same time which may result permission
+#           error. YP.
+# ----------------------------------------------------------------------------
+set -e
+
+version(){
+cat<<EOF
+${0##*/} 2017.05.1
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Yaswant Pradhan.
+EOF
+}
+usage(){
+more << EOF
+${0##*/} is a multipage wrapper to ImageMagick convert(1). Additionally, it can produce PDF files using gs(1) utility.
+
+Usage: ${0##*/} [OPTION] inFile [outFile]
+
+Options:
+    -h, -?, --help
+        show this message
+    -a, --alpha <string>
+        alpha (off, opaque) RHEL6 specific
+    -b8
+        reduce the number of bits to 8bit in a colour sample (this option sets output image -depth to 8bit). Useful for reducing output PNG filesize.
+    -c, --crop <geometry>
+        cut out a rectangular region of the image: {size}{offset} or XSz{x}YSz{+-}XOff{+-}YOff
+    -C, --colors <value>
+        preferred number of colors in the image
+    -d, --density <geometry> | <value>
+        horizontal and vertical density of the image in both direction (def: 300)
+    -e, --even
+        process all even pages only
+    -f, --format <string>
+        output format (def: gif)
+    -j, --joinpdf
+        join padf pages to a single pdf file
+    -lg, --logoadd
+        add Met Office logo
+    -lgp, --logoposition <string>
+        met office logo position (north, south, east, west, etc)
+    -lgr, --logoresize <value%>
+        resize met office logo by %
+    -n, --npages <number>
+        number of pages to convert (def: all pages)
+    -o, --odd
+        process all odd pages only
+    -p, --pages <number>
+        process selected pages (page numbers separated by ","). This option overrides -n option
+    -q, --quiet
+        suppress page processing and all warning messages
+    -r, --resize <geometry> | <value>
+        resize the image X[xY] (e.g., 595x842 = A4 size) resize the image N% (def: 40% with [e]ps inFile and 100% with other inFile formats)
+    -R, --rotate <degrees>
+        apply Paeth rotation to the image
+    -t, --optimize
+        optimize PS files prior to conversion
+    -w, --trim
+        trim image edges (remove white space around the figure)
+
+inFile
+    input [encapsulated] postscript file
+        - inFile can be supplied as 'gz' compressed format.
+
+        - conversion from non-e/ps file is carried out with a warning message.
+
+outFile
+    output filename base (def: PSFile basename)
+        - outFile format can be determined from outFile suffix (--format parameter will override this)
+
+        - If no outFileBae is given, ${0##*/} uses inFile basename.
+
+Examples:
+  The following command will extract all even pages from input myfile.ps and write a pdf outfile myfile.pdf with transparency off at 300 dpi resolution
+
+    convert_multipage --even --alpha off --density 300 -f pdf myfile.ps
+
+Report bugs to <yaswant.pradhan>
+EOF
+}
+
+
+## Default settings ----------------------------------------------------------
+OPT=        # convert options
+PSOPT1=     # psselect options 1
+PSOPT2=     # psselect options 2
+NPAGES=     # number of pages to convert (all)
+RF=40%      # Default Rescale factor in percent
+DPI=300     # Default Density
+OFMT=gif    # default output format
+PDFJOIN=    # Join PDF pages after conversion
+COMPRESS=   # Set output image depth to 8bit
+
+CMTMP=$(mktemp -d ${TMPDIR:-$SCRATCH/tmp}/convert-multipage-${USER}.XXXXXX)
+#CMTMP="${TMPDIR:-$SCRATCH/tmp}/convert-multipage-${USER}"
+#mkdir -p $CMTMP                            # create CMTMP if necessary
+LOGOFILE='/home/h05/fra6/bin/newlogo.gif'  # Logofile to add on the figure
+TMPS1="${CMTMP}/temp1.ps"                  # temporary psfile 1
+TMPS2="${CMTMP}/temp2.ps"                  # temporary psfile 2
+TMLOGO="${CMTMP}/logo.gif"                 # temporary logofile
+TMOUT="${CMTMP}/out"                       # temporary outfile base (no extn)
+
+
+## Parse optional arguments --------------------------------------------------
+while [[ $1 == -* ]]; do
+  case $1 in
+    -h|--help|-\?) usage; exit 0;;
+    -a|--alpha)
+            OPT="${OPT} -alpha $2"; shift 2;;
+    -b8)
+            COMPRESS='T'; shift 1;;
+    -c|--crop)
+            OPT="${OPT} -crop $2 +repage "; shift 2;;
+    -C|--colors)
+            OPT="${OPT} -colors $2"; shift 2;;
+    -d|--density)
+            DPI=$2; shift 2;;
+    -e|--even)
+            PSOPT1="${PSOPT1} -e ";
+            half=1;
+            extract=1; shift 1;;
+    -f|--format)
+            fFlag=T;
+            OFMT=$2; shift 2;;
+    -j|--joinpdf)
+            PDFJOIN=T; shift 1;;
+    -lg|--logoadd)
+            addLogo=T; shift 1;;
+    -lgp|--logoposition)
+            logoPos=$2; shift 2;;
+    -lgr|--logoresize)
+            logoResize=$2; shift 2;;
+    -n|--npages)
+            NPAGES=$2;
+            extract=1; shift 2;;
+    -o|--odd)
+            PSOPT1="${PSOPT1} -o ";
+            half=1;
+            oddflag=1;
+            extract=1; shift 1;;
+    -t|--optimize)
+            optimizePS=T; shift 1;;
+    -w|--trim)
+            trimImage=T; shift 1;;
+    -p|--pages)
+            PAGE=$2;
+            PSOPT1="${PSOPT1} -p$PAGE ";
+            extract=1; shift 2;;
+    -q|--quiet)
+            OPT="${OPT} -quiet ";
+            PSOPT1="${PSOPT1} -q ";
+            PSOPT2="${PSOPT2} -q ";
+            qstate=1; shift 1;;
+    -r|--resize)
+            rFlag=T ;
+            RF=$2; shift 2;;
+    -R|--rotate)
+            OPT="${OPT} -rotate $2"; shift 2;;
+    -v|--version)
+            version; exit 0;;
+    --) shift; break;;
+    -*) echo "invalid option: $1" 1>&2; usage; exit 1;;
+  esac
+done
+
+
+## Parse positional arguments ------------------------------------------------
+if [[ $# -lt 1 ]]; then usage; exit 0; fi
+
+FILE=$1     # First argument following options is input PS filename
+[ ! -f $FILE ] && echo -e "** ERROR: '$FILE' does not exist.\n" && exit 1
+
+
+## Get file extension, only if something exists after last '.' ---------------
+EXT=$(echo $FILE |awk -F . '{if (NF>1) {print $NF}}')
+if [[ $EXT = '' ]]; then
+  echo -e "** ERROR: Cannot determine input file format\n"
+  exit 1
+elif [[ $EXT = 'gz' ]]; then
+  gzFlag=T
+  echo -e "Decompressing $FILE ..\c"
+  DFILE=${FILE%.*}
+  gunzip -c $FILE > $DFILE
+  echo -e "done"
+  FILE=$DFILE
+  EXT=${FILE##*.}     # last part of the file name
+fi
+
+
+## Optimise ps file -----------------------------------------------------------
+if [[ $optimizePS = T ]]; then
+  ps2ps $FILE "${CMTMP}/optimized.ps"
+  mv "${CMTMP}/optimized.ps" $FILE
+fi
+
+
+## Second (optional) argument following options is output filebasename -------
+if [[ $# -eq 2 ]]; then
+  OEXT=$(echo $2 |awk -F . '{if (NF>1) {print $NF}}')
+  if [[ $OEXT = '' ]]; then
+    OUTFILE=$2
+  else
+    OUTFILE=${2%.*}
+    [[ $fFlag != T ]] && OFMT=${OEXT}
+  fi
+else
+  OUTFILE=$(basename $FILE .$EXT)
+fi
+
+if [[ $OFMT = pdf ]]; then
+  [[ $qstate -ne 1 ]] && echo "INFO: ps2pdf compotibility 1.4"
+  [[ $addLogo = T ]] && echo " --logoadd - Invalid option for pdf output"
+  [[ $trimImage = T ]] && echo " --trim - Invalid option for pdf output"
+fi
+
+
+## Check if file type is [E]PS, from file extension --------------------------
+ext=$(echo $EXT |tr '[:upper:]' '[:lower:]')
+EXT=$(echo $EXT |tr '[:lower:]' '[:upper:]')
+
+#if [[ ${EXT^^} != PS ]] && [[ ${EXT,,} != eps ]]; then # in bash-4
+if [[ ${EXT} != PS ]] && [[ ${ext} != eps ]]; then  # in bash-3
+  [[ $rFlag != T ]] && RF=100%
+
+  if [[ $FILE == ${OUTFILE}.${OFMT} ]]; then
+    echo -e "INFO: Iput File = Output File. No conversion applied\n"
+    usage; exit 0;
+  fi
+
+  [[ $qstate -ne 1 ]] && echo "INFO: Converting from a non-PS file"
+  convert +antialias -flatten \
+    -density $DPI ${OPT} ${FILE} \
+    -resize ${RF} ${OUTFILE}.${OFMT}
+  exit 0
+fi
+
+
+# ----------------------------------------------------------------------------
+# Adjust output page format with leading 0 so that the page numbers of the
+# output file(s) are nicely formatted (e.g.01,02..10 or
+# 001,002,..099,..100,..999)
+# ----------------------------------------------------------------------------
+NPAGES=${NPAGES:-$(grep -c %%Page: $FILE)}
+form="l($NPAGES) / l(10)"
+pf=$( echo $form | bc -l )
+case $pf in
+  0|.*) Z="%01d" ;; # Output Page numbers format I1
+  1*)   Z="%02d" ;; # Output Page numbers format I2
+  2*)   Z="%03d" ;; # Output Page numbers format I3
+  3*)   Z="%04d" ;; # Output Page numbers format I4
+  4*)   echo "Warning: Do you really want to convert $NPAGES pages!"
+        Z="%05d" ;; # Output Page numbers format I5
+esac
+
+
+## Start Converting pages ----------------------------------------------------
+#PAGE=${PAGE:-1}  # Initialise page number
+
+if [[ $PAGE == '' ]]; then
+  for (( i=0;  i<$NPAGES;  i++ )); do
+    PageArr[i]=$(( $i + 1 ))
+  done
+  PSOPT1="${PSOPT1} -p1-$NumPages"
+else
+  oIFS="$IFS"; IFS=','
+  PageArr=($PAGE)
+  IFS="$oIFS"
+  NPAGES=${#PageArr[*]}
+fi
+
+## Copy or extract selected pages to a temporary PS file ---------------------
+if [[ $extract -eq 1 ]]; then
+  psselect $PSOPT1 -q ${FILE} ${TMPS1}
+else
+  cp ${FILE} ${TMPS1}
+fi
+
+
+## Count total number of pages in temporary PS file --------------------------
+TPAGES=$(grep -c %%Page: $TMPS1)
+
+
+## Calculate how many pages to convert ---------------------------------------
+addone=0
+[[ $oddflag -eq 1 ]] && addone=$(( $NPAGES%2 ))
+[[ $half -eq 1 ]] && NPAGES=$(( $NPAGES / 2 + $addone))
+[[ $qstate -ne 1 ]] && echo "INFO: $NPAGES pages to convert."
+
+
+## Apply colour quantisation for gif outputs ---------------------------------
+[[ $OFMT = gif ]] && OPT="${OPT} +dither -colors 256 ";
+
+
+## Reinstate page counter ----------------------------------------------------
+PAGE=1
+pnum=
+
+while (( $PAGE <= $NPAGES )); do
+  ## Select ps pages and write to temp file --------------------------------
+  if [[ $NPAGES -gt 1 ]]; then pnum="-$(printf $Z $PAGE)"; fi
+  psselect $PSOPT2 -p$PAGE ${TMPS1} ${TMPS2}
+
+  if [[ $OFMT = pdf ]]; then
+    # Use gs to convert:
+    gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 \
+      -dPDFSETTINGS=/prepress -dNOPAUSE -dQUIET -dBATCH \
+      -dAutoRotatePages=/All -sPAPERSIZE=a4 -dFIXEDMEDIA \
+      -sOutputFile=${OUTFILE}${pnum}.${OFMT} ${TMPS2}
+
+    pdfPages="$pdfPages ${OUTFILE}${pnum}.${OFMT}"
+  else
+    # Use ImageMagick convert:
+    convert +antialias -flatten \
+      -density $DPI ${OPT} ${TMPS2} \
+      -resize ${RF} ${OUTFILE}${pnum}.${OFMT}
+  fi
+
+  ## Trim image edge -------------------------------------------------------
+  if [[ $trimImage = T ]] && [[ $OFMT != pdf ]]; then
+    convert ${OUTFILE}${pnum}.${OFMT} -trim +repage ${OUTFILE}${pnum}.${OFMT}
+  fi
+
+  ## Add Met Office logo ---------------------------------------------------
+  if [[ $addLogo = T ]] && [ -f $LOGOFILE ] && [[ $OFMT != pdf ]]; then
+    echo " Adding Met Office Logo to ${OUTFILE}${pnum}.${OFMT}"
+    logoPos=${logoPos:-northwest}
+    logoResize=${logoResize:-100%}
+
+    convert $LOGOFILE -resize $logoResize $TMLOGO
+
+    composite -dissolve 80% -gravity $logoPos \
+      $TMLOGO ${OUTFILE}${pnum}.${OFMT} ${TMOUT}.${OFMT}
+
+    mv ${TMOUT}.${OFMT} ${OUTFILE}${pnum}.${OFMT}
+  fi
+
+  ## Compress image --------------------------------------------------------
+  if [[ "$COMPRESS" = 'T' ]] ; then
+    echo " Reducing image depth.."
+    convert ${OUTFILE}${pnum}.${OFMT} -depth 8 ${OUTFILE}${pnum}.${OFMT}
+  fi
+
+  ## Terminate if Page number exceed Total page in PS file -----------------
+  if [[ $PAGE -ge $TPAGES ]] ; then
+    rm -rf $CMTMP
+    [[ $gzFlag = T ]] && rm -f $FILE
+
+    if [[ $OFMT = pdf ]] && [[ $PDFJOIN = T ]] ; then
+      echo -e "INFO: Joining PDF pages.. \c"
+      pdftk $pdfPages cat output ${OUTFILE}.${OFMT}
+      echo -e "done."
+      rm -f ${OUTFILE}-*.${OFMT}
+    fi
+
+    exit 0
+  fi
+
+  let PAGE=$PAGE+1
+done
+
+# ----------------------------------------------------------------------------
+# Housekeep
+# Normally the script should terminate before this; clean-up if the CMTMP
+# and compressed files still exist
+# ----------------------------------------------------------------------------
+echo "Force Removing $CMTMP"
+rm -rf $CMTMP
+[[ $gzFlag = T ]] && rm -f $FILE
+exit $?

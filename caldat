@@ -52,7 +52,7 @@ Get the day of year, the week day and week number for the above julian day:
     caldat 2433307.5 -f "%j %A %w"
         026 Thursday 4
 
-Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+Report bugs to <yaswant.pradhan>
 EOF
 }
 # ----------------------------------------------------------------------------

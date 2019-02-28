@@ -1,0 +1,49 @@
+#!/bin/bash
+# syntax:
+#   restore filepath [snapshot]
+#
+# restore files/dirs from snapshots (Limited to data in $HOME only)
+# yaswant.pradhan 2014/15
+# -----------------------------------------------------------------------------
+rootdir=$(readlink -f $HOME)
+SNAPSHOTDIR=$rootdir/.snapshot
+rspoint=${2:-'hourly.0'}
+
+function line(){ for i in {1..80}; do echo -e '-\c'; done; echo ""; }
+function usage()
+{
+more << EOF
+$(basename $0) file[dir]name [snapshot]
+---------------------
+ Available snapshots
+---------------------
+$(ls -lt $SNAPSHOTDIR |tail -n+2 |\
+  awk '{printf"%10s   @%6s on %s-%s\n", $9,$8,$7,$6}')
+EOF
+}
+# -----------------------------------------------------------------------------
+
+[[ "$#" -lt 1 ]] && usage && exit
+
+# Parse file path
+fpath=$(readlink -f $1)      # Full paths of File/Directory to be restored
+rpath=${fpath#$rootdir/}    # Path relative to $HOME
+
+if [ ! -e "$SNAPSHOTDIR/$rspoint" ]; then
+    echo "** $SNAPSHOTDIR/$rspoint doesnot not exist **"
+    echo "Select a snapshot directory to restore:"
+    line; ls -t $SNAPSHOTDIR && line || exit $?
+    read rspoint
+fi
+snapfile="$SNAPSHOTDIR/$rspoint/$rpath"
+
+
+if [ -e "$snapfile" ]; then echo "Restoring from $rspoint"
+else
+    echo "$rpath not found in $rspoint"
+    exit 1
+fi
+
+echo "[command] rsync -avi --delete $snapfile $(dirname $fpath)"
+read -ep "WARN! Once restored, this cannot be reverted - Do you want to continue? y|[n]: " yn
+[[ "$yn" == 'y' ]] && rsync -avi --delete $snapfile $(dirname $fpath)

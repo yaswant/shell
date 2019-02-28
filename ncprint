@@ -1,0 +1,8 @@
+#!/bin/bash
+# Print data from a single netcdf variable as a single column.
+set -e
+
+[[ "$#" -lt 2 ]] && echo "usage: ${0##*/} variable ncfile" && exit 0
+echo $1
+ncks -s '%f\n' -C -H -v $1 $2
+

@@ -1,0 +1,231 @@
+#!/bin/bash
+#
+# curl_dir
+#       A curl wrapper to transfer (get) all [matched] files from a directory.
+#
+# Synopsis:
+#       curl_dir [options] ftpDir [saveDir]
+#
+# Usage:
+#       curl_dir --help
+#
+# History:
+# Nov 2013. Created. Yaswant Pradhan
+# Dec 2014. Added batch download function + some optimisation. YP.
+# Jan 2015. Deal with http:// directory too (use --filter option). YP.
+# Jul 2018. Parse URL encoding (replace %chars) and bug fix. YP.
+# Sep 2018. Add --dry-run option. YP.
+# -----------------------------------------------------------------------------
+
+BLDON=$(tput bold 2>/dev/null)
+BLDOF=$(tput sgr0 2>/dev/null)
+
+# utf2asc(){ iconv -c -f utf-8 -t ascii $1; }
+msg() { echo -e "$(date -u +'%F %R:%S') $@"; }
+hr() { for i in {1..38}; do echo -e "-\c"; done; echo -e "\n"; }
+decode_url() { ## replace % encoding w/ approp characters from a url listfile
+  tmp=$(mktemp $(basename $0).flist.XXXX --tmpdir=${TMPDIR}/${USER})
+  sed 's@+@ @g;s@%@\\x@g' $1 | xargs -0 printf "%b" > $tmp
+  mv $tmp $1
+}
+urlstat() { ## check URL validity
+  echo "$1" | grep "tp\:\/\/" &>/dev/null
+  echo $?
+}
+
+
+usage() {
+cat << EOF
+${BLDON}NAME${BLDOF}
+    $(basename $0)
+        A cURL wrapper to trasfer (fetch) all files from a ftp directory.
+        Existing files are updated (see curl -C flag) by automatically finding
+        where to resume the transfer.
+
+${BLDON}SYNOPSIS${BLDOF}
+    $(basename $0) [OPTION] ftpDir [saveDir]
+
+${BLDON}DESCRIPTION${BLDOF}
+  Options:
+    -h, --help, -?
+            show this message.
+
+    -b, --batch <num>
+            Number of files in each batch. Download will forward to next batch
+            once all files in the previous batch are finished. (default: 10 files)
+
+    -k, --keep
+            Keep the temporary listFile for diagnostics purpose
+            (default action is to auto clean the tmp file)
+
+    -f, --filter <pat>
+            Filter the files with regular expression (advisable)
+
+    -fx <pat>
+            Filter the files with file suffix
+
+    -t, --retry  <num>
+            Retry request <num>-times if transient problems occur. (default: 3)
+
+    -m, --maxtime <sec>
+            Maximum time in <seconds> that you allow the whole operation to
+            take.  This is useful to preventing your  batch jobs from hanging
+            over hours due to slow networks or links going down. If this option
+            is used several times, the last one will be used. (default: 5 min)
+
+    -n, --dry-run
+            Print a list of [matching] files on the server. Dont download yet.
+
+    -v, --verbose
+            Make the operation more talkative. (default: quiet)
+
+    -x, --proxy <proxyhost[:port]>
+            Use the specified HTTP proxy. Default is
+
+
+    <ftpDir> URL/PATH
+            Full Path to ftp directory including server address.
+
+    <saveDir> optional
+            saveDir is the directory where all other files and subdirectories
+            will be saved to, i.e. the top of the retrieval tree. The default
+            is base directory of the ftp address (in the current directory)
+
+${BLDON}COPYRIGHT${BLDOF}
+    Copyright (C) 2011 Free Software Foundation, Inc.  License GPLv3+: GNU GPL version 3 or later
+    <http://gnu.org/licenses/gpl.html>.
+    This is free software: you are free to change and redistribute it. There is NO WARRANTY,
+    to the extent permitted by law.
+
+${BLDON}AUTHOR${BLDOF}
+    Written by Yaswant Pradhan.
+
+${BLDON}SEE ALSO${BLDOF}
+    curl(1).
+
+EOF
+}
+#------------------------------------------------------------------------------
+
+
+# Parse default settings
+OPT=        # cURL options
+FILTER=""   # Download files with matching regular pattern
+BATCH=10    # Number of files in each batch
+TRIES=3     # Number of retries for each file
+MTIME=300   # Maximum time in seconds for each operation
+quiet=1     # quiet mode
+KEEPTMP=    # Keep temporary fileList
+PROXY=
+DRY_RUN=0
+
+while [[ $1 == -* ]]; do
+  case "$1" in
+    -h|--help|-\?) usage | more; exit 0 ;;
+    -b|--batch) BATCH="$2"; shift 2 ;;
+    -f|--filter) FILTER="$2"; shift 2 ;;
+    -fx|--fext) FILTER="$2"\$; shift 2;;
+    -k|--keep) KEEPTMP=1; shift 1 ;;
+    -m|--maxtime) MTIME="$2"; shift 2 ;;
+    -n|--dry-run) DRY_RUN=1; shift 1 ;;
+    -t|--tries) TRIES="$2"; shift 2 ;;
+    -v|--verbose) quiet=0; OPT="$OPT -v "; shift 1 ;;
+    -x|--proxy) PROXY="$2"; shift 2 ;;
+    --) shift; break ;;
+    -*) echo "invalid option: $1" 1>&2; usage | more; exit 1;;
+  esac
+done
+[[ "$quiet" -eq 1 ]] && OPT="$OPT -s "
+
+
+# Parse arguments
+[[ $# -lt 1 ]] && usage | more && exit 0
+saveDir=${2:-$(basename $1)}
+
+# Create a temporary listfile (plain text) to download each items
+# from the server recursively #fileList="/var/tmp/$USER/curl.files.list"
+fileList=$(mktemp $(basename $0).flist.XXXXXX --tmpdir=${TMPDIR}/${USER})
+[[ "$quiet" -eq 0 ]] && echo -e "Listfile: $fileList"
+
+
+# Curl the FTP directory content (apply filters if necessary, see -f flag)
+# and store the file names in $fileList
+[ -n "$FILTER" ] && echo -e "File pattern: $FILTER"
+
+
+# Check validity of the remote URL
+curl -x $PROXY --fail ${1}/ &>/dev/null
+[[ $? -ne 0 ]] && echo "E: invalid dir ${1}" && rm -f $fileList && exit 1
+
+
+# Add files with prescribed filter in the list file
+if [ -z "$FILTER" ]; then
+  curl -x $PROXY -s ${1}/ | tail -n+6 | grep -Po '(?<=href=").*' \
+    | cut -d'"' -f 1 > $fileList
+else
+  curl -x $PROXY -s ${1}/ | grep -Po '(?<=href=").*' | cut -d'"' -f 1 \
+    | grep "$FILTER" > $fileList
+fi
+
+
+# Check number of files (in the list file) to download
+nFiles=$(cat $fileList | wc -l)
+
+[[ "$nFiles" -eq 0 ]] \
+  && echo -e "\nE: $1 --Invalid URI or File Filter--\n" \
+  && exit 1
+
+[[ "$nFiles" -gt "$BATCH" && "$quiet" -eq 0 ]] \
+  && echo -e "\nW: number of files to download "$nFiles"
+  I: batch_dnld ON; process will wait between each batch of $BATCH files\n"
+
+decode_url $fileList
+if (( $DRY_RUN )); then
+  msg "[DRY-RUN] Listing $nFiles matching files on remote-server:"
+  cat $fileList | sed 's!.*/!!' | sort | uniq | nl
+  rm -f $fileList
+  echo -e "\nNumber of matching files = $nFiles"
+  exit $?
+fi
+
+# Create a save Directory and cd to it where the files will be stored
+mkdir -p $saveDir && cd $saveDir || exit $?
+msg "Downloading $nFiles files to: $saveDir/"
+cnt=0
+
+
+# Download files listed in fileList (in batches of $BATCH files) --------------
+while read file; do
+
+  printf "."
+  # Check if file is a valid URL
+  code=$(urlstat "$file")
+  if [[ "$code" -eq 0 ]]; then
+    # `file` includes full remote path
+    curl -x $PROXY -C - -OS --max-time $MTIME --retry $TRIES \
+      $OPT -L $file &
+  else
+    # `file` does not include remote address, add prefix to file
+    curl -x $PROXY -C - -OS --max-time $MTIME --retry $TRIES \
+      $OPT -L ${1}/${file##*/} &
+  fi
+
+  cnt=$((cnt + 1))
+  [[ $(( cnt % BATCH )) -eq 0 ]] && wait && echo -e " \c";
+
+done < $fileList
+wait
+
+echo; msg "Download complete."; hr
+
+
+# Housekeep -------------------------------------------------------------------
+if [[ "$KEEPTMP" -eq 1 ]]; then
+  read -p "Do you want to remove the listFile $fileList? " yn
+  case $yn in
+    [Yy]* ) rm -f $fileList; exit;;
+    [Nn]*| * ) exit;;
+  esac
+else
+  rm -f $fileList
+fi

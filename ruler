@@ -1,0 +1,79 @@
+#!/bin/bash
+# Display a simple pixel ruler.
+#
+# usage:
+#       ruler [-b <bg-colour>] [ruler-length] [major-interval] [minor-interval]
+#       all units in pixels.
+#
+# 2017-04-21 initial release. yaswant.pradhan.
+# 2018-03-07 v1.0.1. update options. yp.
+# -----------------------------------------------------------------------------
+
+DISPLAY_OPT=
+ARGS=""
+while [ $# -gt 0 ]; do
+    unset OPTIND
+    unset OPTARG
+    while getopts hvVb:c:f: opts; do
+    case $opts in
+        h)  echo "usage: ${0##*/} [-b <bg-colour>] [-c <colour>] [-f <font-name>] [ruler-length] [major-interval] [minor-interval]"; exit 0 ;;
+        v)  DISPLAY_OPT='-rotate 90' ;;
+        V)  echo "${0##*/}: Version 1.0.1"; exit 0 ;;
+        b)  bcol="$OPTARG" ;;
+        c)  col="$OPTARG" ;;
+        f)  font="$OPTARG" ;;
+    esac
+    done
+    shift $((OPTIND-1))
+    ARGS="${ARGS} $1"
+    shift
+done
+ARGS=($ARGS)
+# -----------------------------------------------------------------------------
+
+rulerlength="${ARGS[0]}"
+majorint="${ARGS[1]}"
+minorint="${ARGS[2]}"
+rulername="$TMPDIR/ruler.gif"
+rulerlength="${rulerlength:=520}"
+majorint="${majorint:=100}"
+minorint="${minorint:=5}"
+bgcol="${bcol:=orange}"
+col="${col:=black}"
+font="${font:=fixed}"
+drawstring=""
+
+
+# Build the line definitions for the ruler marks
+for x1 in `seq 0 $majorint $rulerlength`; do
+    drawstring="$drawstring line $x1,30 $x1,60"
+    for x2 in 0 $(( majorint / 2 )); do
+        (( offset = $x1 + $x2 ))
+        drawstring="$drawstring line $offset,40 $offset,60"
+        for x3 in `seq $minorint $minorint $(( majorint / 2))`; do
+            (( offset2 = $offset + $x3 ))
+            drawstring="$drawstring line $offset2,50 $offset2,60"
+        done
+    done
+done
+
+# Add labels
+labelfont="-fill $col -font $font -pointsize 18 -draw"
+labelstring="text 0,20 '0' "
+for x3 in $majorint; do
+    offset3=$(($x3 - 12 ))
+    labelstring="$labelstring text $offset3,20 '$x3' "
+done
+for x4 in `seq $(( majorint * 2 )) $majorint $rulerlength`; do
+    offset4=$(( $x4 - 12 ))
+    labelstring="$labelstring text $offset4,20 '$x4' "
+done
+
+convert -size "${rulerlength}x60" xc:$bgcol -fill $col \
+        -draw "$drawstring" $labelfont "$labelstring" "$rulername"
+
+# Display ruler; use \ / * to rotate the ruler
+display $DISPLAY_OPT -title 'Pixel Ruler' $rulername
+
+# Housekeep
+rm -rf $rulername

@@ -1,0 +1,40 @@
+#!/bin/bash
+# Tar a specific directory (using fast compression)
+# usage:
+#       tarz path [archive_name]
+#
+#  default archive_name is basename(path)_CCYY-mm-dd.tgz.
+#
+# 2018-04-18 yaswant.pradhan (original)
+# 2019-01-14 yp tidy printing output while archiving..
+# -----------------------------------------------------------------------------
+set -e
+
+[[ $# -lt 1 ]] && { echo "Usage: ${0##*/} path [archive_name]" && exit; }
+dir_name=$(basename "$1")
+arch_name=${2:-${dir_name}_$(date -u +%F).tgz}
+BLOCKSIZE=1024  # multiples of 512 bytes
+NDASH=20        # number of progress indicators
+
+# Add progress indicator
+# tar cf $arch_name -I /usr/bin/pigz --checkpoint=.1000 --totals $1
+
+BLOCKS=$(du -sB $BLOCKSIZE --apparent-size "$dir_name" | cut -f 1)
+CHECKPOINT=$(echo ${BLOCKS}/${NDASH} | bc)
+
+printf 'Num Blocks: %s\n' $BLOCKS
+printf 'Block Size: %s bytes\n' $BLOCKSIZE
+printf 'Blocks per Checkpoint: %f\n' $(echo "$BLOCKS/$CHECKPOINT" | bc -l)
+
+printf 'Estimated: ['
+(( $CHECKPOINT != 0 )) && printf '=%.0s' $(seq 1 $NDASH)
+printf ']'
+printf '  %s blocks' "$BLOCKS"
+
+
+printf '\nProgress:  ['
+tar -cP -s --record-size=$BLOCKSIZE --checkpoint="$CHECKPOINT" \
+    --checkpoint-action="ttyout=>" -f - "$1" | /usr/bin/pigz > "$arch_name";
+printf ']'
+printf '  %s blocks' $(du -sB $BLOCKSIZE --apparent-size "$arch_name" | cut -f 1)
+echo -e "\n\nINFO: File archived as: $arch_name"

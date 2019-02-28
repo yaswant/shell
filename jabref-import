@@ -1,0 +1,9 @@
+#!/bin/bash
+# jabref-import
+#
+# Import citation to jabref directly from .bib file
+#
+# yaswant.pradhan 2015.
+# -----------------------------------------------------------------------------
+
+java -jar JabRef-2.10.jar -i --importToOpen "$*"

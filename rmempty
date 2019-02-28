@@ -53,7 +53,7 @@ Options:
   -v, --version         print version and exit
   -h, --help            print this help and exit
 
-Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+Report bugs to <yaswant.pradhan>
 EOF
 }
 

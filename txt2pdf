@@ -1,0 +1,88 @@
+#!/bin/bash
+#
+# Convert text to pdf for pretty print
+#
+# usage: txt2pdf [option] txtfile [pdffile]
+#
+# options:
+#   -u, --use-paps
+#       use paps (instead of default enscript) to generate pdf. If used, all
+#       other options will be ignored.
+#   -C, --line-numbers
+#       add line numbers to output file.
+#   -s, --code-print
+#       generate output for source codes (includes line numbers as default).
+#   -f, --font <name>
+#       Select a font that is used for the body text. The default body font is
+#       Helvetica10
+#
+# History:
+# 2018-08-02 beta release   yaswant.pradhan
+# -----------------------------------------------------------------------------
+
+OPT=
+FONT=Helvetica10
+while [[ $1 == -* ]]; do
+  case "$1" in
+    -C|--line-numbers) OPT="${OPT} -C "; shift 1;;
+    -u|--use-paps) USE_PAPS=1; shift 1;;
+    -s|--code-print) CODE_PRINT=1; shift 1;;
+    -f|--font) FONT="$2"; shift 2;;
+    --) shift; break;;
+    -*) echo "invalid option: $1" 1>&2; exit 1;;
+  esac
+done
+
+INPUT="$1"
+PDIR="${TMPDIR}/txt2pdf"
+OPEN_PDF=evince
+
+# check to make sure that enscript and ps2pdf are both installed
+if ! command -v enscript >/dev/null || ! command -v ps2pdf >/dev/null; then
+  echo "ERROR: both enscript and ps2pdf must be installed" 1>&2
+  exit 1
+fi
+
+# create temp dir if it does not exist
+if [ ! -d "$PDIR" ]; then
+  mkdir -p "$PDIR" 2>/dev/null
+  if [ $? -ne 0 ]; then
+    echo "Unable to make directory '$PDIR'" 1>&2
+    exit 2
+  fi
+fi
+
+tmpfile="$(mktemp $PDIR/txt2pdf_XXXXXXXX.pdf)"
+
+if (( $USE_PAPS )); then
+  paps --font="Helvetica 10" --paper A4 --header $INPUT - 2>/dev/null \
+    | ps2pdf - $tmpfile
+else
+  ENS_FMT=" --font=$FONT --header-font=Courier9 --media=A4 "
+  ENS_FMT="$ENS_FMT --color --word-wrap --margins=25:25:-5:25 -T 4 "
+  HDR_FMT="$INPUT|%F|Page $% of $= "
+
+  if [[ "$INPUT" ]]; then
+	# Read input from file
+    (( $CODE_PRINT )) \
+      && ENS_FMT=" -G1 -C --media A4 -U2 " \
+      && HDR_FMT="|$INPUT|"
+
+    cat $INPUT \
+      | iconv -f utf-8 -t iso-8859-1//TRANSLIT \
+      | enscript $OPT $ENS_FMT --header="$HDR_FMT" -X 88591 -o - 2>/dev/null \
+      | ps2pdf - $tmpfile
+  else
+		# Read input from stdin (convert to ascii//TRANSLIT or
+		# iso-9959-1//TRANSLIT) as enscript dont support utf-8
+		echo "Converting to PDF ..."
+    iconv -f utf-8 -t iso-8859-1//TRANSLIT - \
+      | enscript $OPT $ENS_FMT -o - 2>/dev/null \
+      | ps2pdf - $tmpfile
+  fi
+fi
+
+$OPEN_PDF $tmpfile >/dev/null 2>&1 &
+sleep 1
+rm $tmpfile
+

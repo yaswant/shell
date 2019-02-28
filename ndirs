@@ -1,0 +1,26 @@
+#!/usr/bin/sh
+# ------------------------------------------------------------------------------
+# Usage:
+# 	ndirs [ Path ] [nlevels]
+#
+# Synposis:
+#	  Returns number of directories in a specified Path; Default search level is 1
+#
+# Author:
+# 	yaswant.pradhan
+# ------------------------------------------------------------------------------
+
+# Set search Path, default: current working directory
+[ $1 ] && cwd=$1 || cwd=$(pwd)
+
+# Set search levels, default: 1
+[[ $# -eq 2 ]] && depth=$2 || depth=1
+
+#echo "Scanning: $cwd"
+nd=$(find $cwd -maxdepth $depth -type d | wc -l)
+
+# Return number of directories (Note: default directory "." is removed here)
+echo $(( $nd - 1 ))
+
+exit $?
+

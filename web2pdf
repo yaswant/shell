@@ -1,0 +1,68 @@
+#!/bin/bash
+# web2pdf       Print a webpage to pdf file
+#
+# Usage: web2pdf URL [pdffile] [encoding]
+#
+# Args:
+#   URL         input web address to convert content
+#   pdffile     file-name for output pdf. Default is to auto-generate from
+#               input URL
+#   encoding    test encoding for for desired output.
+#               Text encoding for the input content is auto-detected, and
+#               default encoding for output is defined as:
+#               - same as input encoding if confidence is 1
+#               - ascii/TRANSLIT if confidence is below 1
+#               User-define encoding ($3) supersedes the default behaviour
+#
+# yaswant.pradhan
+# -----------------------------------------------------------------------------
+set -e
+
+# html2ps config file see (http://user.it.uu.se/~jan/html2psug.html)
+CONFIG_FILE='/home/h05/fra6/.html2psrc'
+
+usage() { echo "usage: $(basename $0) URL [pdffile] [encoding]" ; }
+[[ $# -lt 1 ]] && usage && exit 1
+
+webf=$(basename $1)
+TMP_HTML=${TMPDIR}/${webf}
+OUT_PDF="${webf%.*}.pdf"
+
+[[ $# -ge 2 ]] && OUT_PDF=$2
+
+
+## html2ps (1.0b5) cant deal with a) secure protocols, b) limited encoding opts
+## best is to wget the file and and use gnu iconv to convert to ascii encoding
+## https://unix.stackexchange.com/questions/141539
+wget -nd -q $1 -O $TMP_HTML \
+  || { rc=$?; rm $TMP_HTML; echo -e "ERROR $rc: wget $1 failed."; exit $rc ;}
+
+
+## autodetect input charset and convert to ascii or perhaps iso-8859-1
+encoding=($(chardetect $TMP_HTML |cut -d" " -f 2,5))
+confidence=$(echo "${encoding[1]} == 1" |bc)
+[[ $confidence -eq 1 ]] && DEF_ENC=${encoding[0]} || DEF_ENC='ascii//TRANSLIT'
+TO_ENC=${3:-$DEF_ENC}
+
+
+## set base URL to embed images
+[[ ${1: -1} == '/' ]] && BASE=$1 || BASE=${1%/*}
+echo "${0##*/}: BASE_URL=$BASE"
+
+
+## update html encoding to plain text if input encoding confidence is below 1
+## convert to ps | convert tp pdf
+iconv -f ${encoding[0]} -t $TO_ENC $TMP_HTML | \
+html2ps -b $BASE/ -f $CONFIG_FILE -nUH 2>/dev/null | \
+ps2pdf - $OUT_PDF
+
+
+## print summary
+echo "${0##*/}: writing $OUT_PDF (encoded from:$encoding to:$TO_ENC)"
+
+
+## Clean-up
+rm -f $TMP_HTML
+
+## Display output
+evince $OUT_PDF

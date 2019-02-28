@@ -85,7 +85,7 @@ Options:
   -s, --synop         display weather summary based on SYNOP report. def: METAR report
   -v, --version       print version number and exit
 
-Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+Report bugs to <yaswant.pradhan>
 EOF
 }
 

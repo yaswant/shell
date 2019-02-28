@@ -1,0 +1,168 @@
+#!/bin/bash
+# Usage: files [OPTIONS] [PATH]
+# search and list files with flexible search patterns
+# yaswant.pradhan
+# 30.05.2012 written (yp)
+# 01.06.2012 optimised (yp)
+# -----------------------------------------------------------------------------
+BLDON=$(tput bold 2>/dev/null)
+BLDOF=$(tput sgr0 2>/dev/null)
+
+usage() {
+cat << EOF
+${BLDON}NAME${BLDOF}
+    $(basename $0), search files (using find method) in a directory with
+    specific size and delete if required.
+
+${BLDON}SYNOPSIS${BLDOF}
+    $(basename $0) [OPTION] [PATH]
+
+${BLDON}DESCRIPTION${BLDOF}
+    files is a fork of the GNU find. This is useful to list files of specific
+    size and age quickly without having to remember the available options
+    in find.
+
+${BLDON}OPTIONS${BLDOF}
+    -h -? --help
+        Show this message
+
+    -L
+        Follow  symbolic  links (def: Never follow symbolic links)
+
+    -H
+        Do not follow symbolic links, except while processing the command line
+        arguments.
+
+    -k --keep
+        Keep log file (recorded as /tmp/__files.log)
+
+    -gt --bigger n[cwbkMG]
+        Find files larger than this unit (see bleow).
+
+    -lt --smaller n[cwbkMG]
+        Find files smaller than this unit (see bleow).
+
+        The following suffixes can be used with -gt and -lt options:
+        'b'  for 512-byte blocks (this is the default if no suffix is used)
+        'c'  for bytes
+        'w'  for two-byte words
+        'k'  for Kilobytes (units of 1024 bytes)
+        'M'  for Megabytes (units of 1048576 bytes)
+        'G'  for Gigabytes (units of 1073741824 bytes)
+
+        The size does not count indirect blocks, but it does count blocks in
+        sparse files that are not actually allocated. Bear in mind that the
+        '%k' and '%b' format specifiers of -printf handle sparse files
+        differently. The 'b' suffix always denotes 512-byte blocks and
+        never 1 Kilobyte blocks, which is different to the behaviour of -ls.
+
+    -ot --older n
+        File's data was last modified n minutes ago.
+
+    -nt --newer n
+        File's data was last modified since last n minutes.
+
+    -del
+        Delete files matching the search options.
+
+    PATH
+        Search Path (def: current working directory)
+
+${BLDON}EXAMPLES${BLDOF}
+    Wildcard filtering can be applied seamlessly to files command (on linux 3).
+    - Find all files ending with ".hdf" in path
+        files path/*.hdf
+
+    - Find all files with "NRT" pattern in path
+        files path/*NRT*
+
+    - Find all files with "NRT" pattern and newer than past 1 hour
+        files -nt 60 *NRT*
+
+    - Find all files with "NRT" pattern and newer than past 1 hour and file
+      size smaller than 1 Megabyte
+        files -nt 60 -lt 1024k *NRT*
+
+${BLDON}KNWON ISSUES${BLDOF}
+    With human readable suffixes, files smaller than 1k, 1M, 1G may not produce
+    expected results. This is because the -size does not count indirect blocks,
+    but it does count blocks in  sparse files  that are not actually allocated.
+    Use the suffix c instead to use file apparent size in exact bytes.
+
+${BLDON}COPYRIGHT${BLDOF}
+    Copyright (C) 2011 Free Software Foundation, Inc.  License GPLv3+: GNU
+    GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+    This is free software: you are free to change and redistribute it.
+    There is NO WARRANTY, to the extent permitted by law.
+
+${BLDON}AUTHOR${BLDOF}
+    Written by Yaswant Pradhan.
+
+${BLDON}SEE ALSO${BLDOF}
+    find(1).
+
+EOF
+}
+# -----------------------------------------------------------------------------
+
+# Default settings:
+OPT='-type f'               # Find options (search files only)
+DEL=                        # Delete files
+LOPT=                       # Option to control treatment of symbolic links
+LOG='/var/tmp/__files.log'  # logfile $TMPDIR/__files.log
+
+# Parse optional arguments:
+while [[ $1 == -* ]]; do
+    case "$1" in
+        -h|--help|-\?) usage; exit 0;;
+        -k|--keep) KEEP="True"; shift 1;;
+        -L) LOPT="$LOPT -L"; shift 1;;
+        -H) LOPT="$LOPT -H"; shift 1;;
+        -gt|--bigger) OPT="$OPT -size +$2"; shift 2;;
+        -lt|--smaller) OPT="$OPT -size -$2"; shift 2;;
+        -ot|--older) OPT="$OPT -mmin +$2"; shift 2;;
+        -nt|--newer) OPT="$OPT -mmin -$2"; shift 2;;
+        -del|--delete) DEL=" -delete"; shift 1;;
+        --) shift; break;;
+        -*) echo "invalid option: $1" 1>&2; usage; exit 1;;
+    esac
+done
+
+
+
+# First argument following options is input path. If no path is given,
+# then set the search path to current working directory.
+SPATH=$1
+[[ $# -eq 0 ]] && SPATH=$(pwd)
+
+# Print files with search criteria:
+if [[ $# -le 1 ]]; then
+    echo "find $LOPT "$SPATH" $OPT -exec du --apparent-size -sh {} \;"
+    find $LOPT "$SPATH" $OPT -exec du --apparent-size -sh {} \; |sort -h |tee $LOG
+else
+    find $LOPT "$@" $OPT  -exec du --apparent-size -sh {} \; |sort -h |tee $LOG
+fi
+
+nf=$(cat $LOG |wc -l)
+[[ $nf -gt 1 ]] && s='s'
+[[ $nf -eq 0 ]] && echo -e "No match.\n" && rm $LOG && exit 0
+
+echo -e "\nTotal\t$nf File$s"
+
+
+# Delete files if necessary:
+# Note- Find is not called upon, yet again, for deletion. The list of files
+#       to be deleted are taken from $LOG (generated earlier) instead. It is
+#       assumed that the logfile is tab delimited. File deletion will fail if
+#       this assumption is broken. In such situation uncomment #m3 and comment
+#       #m1
+if [ -n "$DEL" ]; then
+    echo -e ">> Delete these file$s? (y|n): \c"; read x
+    [[ $x = 'y' ]] && rm $(cut -f 2 $LOG) && echo -e "   File$s deleted." #m1
+#   [[ $x = 'y' ]] && rm $(cat $LOG |tr '\t' ',' |cut -d',' -f2)          #m2
+#   [[ $x = 'y' ]] && find $LOPT "$SPATH" $OPT $DEL                      #m3
+fi
+
+
+# Clean-up (Remove log file) --------------------------------------------------
+[ -f $LOG ] && [ -z "$KEEP" ] && rm $LOG

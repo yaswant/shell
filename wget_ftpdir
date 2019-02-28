@@ -1,0 +1,188 @@
+#!/bin/bash
+# wget_ftpdir
+# A GNU wget wrapper to transfer (get) all files from a ftp directory.
+# Syntax:
+#     wget_ftpdir [options] ftpDir [saveDir]
+#
+# History:
+# July 2012. Created. Yaswant Pradhan
+# 2016-02-04 Updated to work with Wget 1.12. YP.
+# 2016-02-04 Added user and pass options. YP.
+# 2016-03-18 Fixed BASE URL in the LIST file. YP.
+# 2016-03-22 Added skip-existing option. YP.
+# -----------------------------------------------------------------------------
+
+BLDON=$(tput bold 2>/dev/null)
+BLDOF=$(tput sgr0 2>/dev/null)
+
+# -----------------------------------------------------------------------------
+usage()
+{
+cat << EOF
+${BLDON}NAME${BLDOF}
+    `basename $0`, a GNU wget wrapper to trasfer (get) all files from a ftp directory.
+
+${BLDON}SYNOPSIS${BLDOF}
+    `basename $0` [OPTION] ftpDir [saveDir]
+
+${BLDON}DESCRIPTION${BLDOF}
+  Options:
+    -h, --help, -?      show this message
+
+    -c, --continue      Continue getting a partially-downloaded file. This is
+                        useful when you want to finish up a download started
+                        by a previous instance of Wget, or by another program.
+
+    -f, --filter <pat>  Filter the files with file extension
+
+    -k, --keep-listfile Retains the listing file (html)
+
+    -u, --user <value>  Authenticate FTP/HTTP username
+
+    -p, --pass <value>  Authenticate FTP/HTTP user password
+
+    -t, --tries <num>   Set number of retries to number. Specify 0 or 'inf' to
+                        retry infinitely. The default is to retry 20-times, with
+                        the exception of fatal errors like "connection refused"
+                        or "not found" (404), which are not retried.
+
+    -nv, --no-verbose   Turn off verbose without being completely quiet
+                        (use '-q'), which means that error messages and basic
+                        information still get printed.
+
+    -q, --quiet         Turn off Wget output.
+
+    -s, --skip-existing Do not download files that are already in localpath.
+                        The check is performed using file names only.
+
+    -x, --proxy         Exports proxy environemnt variables. This actually sets
+                        the Met Office proxy URL location containing
+                        authorization data.
+
+    ftpDir <URL>        Full Path to ftp directory including server address.
+
+    saveDir <PATH> optional  saveDir is the directory where all other files and
+                        subdirectories will be saved to, i.e. the top of the
+                        retrieval tree. The default is base directory of the
+                        ftp address (in the current directory)
+
+${BLDON}COPYRIGHT${BLDOF}
+    Copyright (C) 2011 Free Software Foundation, Inc.  License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+    This is free software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law.
+
+${BLDON}AUTHOR${BLDOF}
+    Written by Yaswant Pradhan.
+
+${BLDON}SEE ALSO${BLDOF}
+    wget(1).
+
+EOF
+}
+# -----------------------------------------------------------------------------
+
+# Default settings
+PROXY_SERVER='http://webproxy.web.server:8080/' # <--- Update
+OPT=
+FILTER=
+KEEPLIST='F'
+SKIP_EXIST='F'
+STAT=('No problems occurred.'
+      'Generic error code.'
+      'Parse error---for instance, when parsing command-line options, the .wgetrc or .netrc...'
+      'File I/O error.'
+      'Network failure.'
+      'SSL verification failure.'
+      'Username/password authentication failure.'
+      'Protocol errors.'
+      'Server issued an error response.')
+
+# Parse optional arguments
+while [[ $1 == -* ]]; do
+    case "$1" in
+        -h|--help|-\?) usage; exit 0;;
+        -f|--filter) FILTER="$2"; shift 2;;
+        -u|--user) OPT="$OPT --user=$2 "; shift 2;;
+        -p|--pass) OPT="$OPT --password=$2 "; shift 2;;
+        -t|--tries) OPT="$OPT -t $2 "; shift 2;;
+		-c|--continue) OPT="$OPT -c "; shift 1;;
+        -nv|--no-verbose) OPT="$OPT -nv "; shift 1;;
+        -q|--quiet) OPT="$OPT -q "; shift 1;;
+        -s|--skip-existing) SKIP_EXIST='T'; shift 1;;
+        -x|--proxy)
+            export http_proxy="$PROXY_SERVER";
+            export ftp_proxy="$PROXY_SERVER";
+            shift 1;;
+        -k|--keep-listfile) KEEPLIST='T'; shift 1;;
+        --) shift; break;;
+        -*) echo "invalid option: $1" 1>&2; usage; exit 1;;
+    esac
+done
+
+
+# Parse arguments:
+[[ $# -lt 1 ]] && { usage && exit 11; }
+
+# Parse URL
+# some servers will exclude <BASE HREF=""> tag in the manifest file when a
+# leading / in present in the ftp URL. Here we check and remove any leading /
+# from the input URL [the first argument]
+URL="$1"
+[[ "${1: -1:1}" = '/' ]] && URL=${1%/*}
+saveDir=${2:-`basename $URL`}
+LIST="${saveDir}.html"
+
+
+# -----------------------------------------------------------------------------
+
+# Get File listing
+# Note ${URL}/ will enforce creation of index.html file, however, it will not
+# be overwritten if a previous index.html file is already in the path (will
+# write index.html1, index.html2.. instead). So we explicitly provide the name
+# of the html manifest file here
+wget -q -t 30 $OPT $URL -O index.html; status="$?"
+if [[ "$status" -ne 0 ]]; then
+    # echo " invalid url $URL";
+    echo "[ERROR $status] ${STAT[$status]}"
+    rm index.html;
+    exit "$status";
+fi
+status=0
+
+
+# Create a filtered file list if required (if -f option enabled);
+# otherwise use the original index.html to download files
+if [[ "$FILTER" != "" ]]; then
+    echo "$LIST retains a list of $FILTER files; use -k option to keep this file"
+    # Parse URL BASE
+    BASE="'$1'"
+    last=${1: -1:1}
+    [[ $last != '/' ]] && BASE="'${1}/'"
+
+    echo -e "<html>\n<head><base href=$BASE></head>\n<body>" > $LIST
+    grep $FILTER\" index.html |grep -o '<a.*</a>' >> $LIST
+    echo "</body></html>" >> $LIST
+
+    rm -f index.html; status=$?
+else
+    mv index.html $LIST; status=$?
+fi
+
+# Create local directory if required
+mkdir -p $saveDir
+
+
+# Modify LIST content to get new files only
+if [[ "$SKIP_EXIST" = T ]]; then
+    echo -e "Removing locally existing filenames from download list - $LIST ..\c"
+    for i in `ls -1 $saveDir`; do sed -i "/$i/d" "$LIST"; done
+    echo -e " done."
+fi
+
+
+# Start download files
+wget $OPT -c --retry-connrefuse -i "$LIST" -F -P $saveDir; status=$?
+rm -f $saveDir/index.html
+
+# Housekeep
+[[ "$KEEPLIST" != T ]] && rm -f $LIST
+exit $status

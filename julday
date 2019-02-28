@@ -115,7 +115,7 @@ julday on 26-Jan-1950 0 UTC (rounded integer with limitations):
     julday 1950-01-26 --time=0 --format=%.f
         2433308
 
-Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+Report bugs to <yaswant.pradhan>
 EOF
 }
 

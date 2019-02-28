@@ -1,0 +1,108 @@
+#!/bin/bash
+# Set-up ~/.mailrc to work via O365 smtp authentication.
+# usage: mailx365-setup <O365 App authentication code>
+#
+# creates:
+#   1. ~/.mailrc file
+#   2. ~/.certificate directory
+#
+# 2018-07-30 yaswant.pradhan
+# 2018-08-09 Use system databases of trusted certificate authorities. YP.
+# -----------------------------------------------------------------------------
+set -e
+
+SMTP='smtp.office365.com:587'
+CERT_DIR=~/.certificates
+MAIL_DIR=~/Mail
+o365cert="${CERT_DIR}/O365.cer"
+mailrc=~/.mailrc
+user_email=$(getent passwd $USER |cut -d: -f5)@metoffice.gov.uk  # <- update
+
+
+auth_help()
+{ # Check for O365 app authentication file for mail ---------------------------
+cat << EOF
+A. Please follow the instruction below to generate Office365 app authentication token:
+
+   1. Navigate to https://myapps.microsoft.com.
+   2. Click on the user name on the top right hand corner.
+   3. Select 'Profile' from the drop down options.
+   4. Under 'Manage account' options Click 'Additional security verification'.
+   5. Select 'App Passwords' in the heading.
+   6. Select 'create', give your new password a relevant name.
+   7. Select 'next' and copy the 16 character token somewhere safe.
+
+B. Then run: ${0##*/} o365_app_token
+
+EOF
+}
+
+update_mailrc() { # Update mailrc file ----------------------------------------
+# usage: $0 authentication_token
+[ -f "$mailrc" ] && mv "$mailrc" "${mailrc}.bkp"
+mkdir -p $MAIL_DIR
+
+cat > "$mailrc" << EOF
+set smtp-use-starttls
+set ssl-verify=ignore
+set smtp-auth=login
+set smtp=$SMTP
+set from=$user_email
+set smtp-auth-user=$user_email
+set smtp-auth-password=$1
+set ssl-verify=ignore
+set nss-config-dir=$CERT_DIR
+
+# keep a record of sent mails
+set record=$MAIL_DIR/sent
+EOF
+  chmod 600 "$mailrc"
+}
+
+while [[ $1 == -* ]]; do
+  case "$1" in
+    -h|--help|-\?) auth_help; exit 0;;
+    --) shift; break;;
+    -*) echo "invalid option: $1" 1>&2; exit 1;;
+  esac
+done
+O365_TOKEN="$1"
+if [[ "$O365_TOKEN" ]]; then
+  update_mailrc "$O365_TOKEN"
+else
+  echo "usage: ${0##*/} O365_app_token"
+  echo "try: ${0##*/} --help"
+  exit 1
+fi
+
+
+# Create certificate ----------------------------------------------------------
+# First, backup existing certificate directory, if any.
+CERT_BKP="${CERT_DIR}.bkp"
+[ -d "$CERT_DIR" ] && rsync -au --remove-source-files $CERT_DIR/ $CERT_BKP
+
+# Create new O365 certificate
+if [ ! -f "$o365cert" ]; then
+  mkdir -p "$CERT_DIR"
+  # opt 1. Create new certificate and key databases in $CERT_DIR
+  # this will mostly likely result in certificate verification error.
+  #certutil -N -d "$CERT_DIR"
+
+  # opt 2. Link to databases of trusted certificate authorities in $CERT_DIR
+  for i in /etc/pki/nssdb/*; do
+    ln -sf $i -t $CERT_DIR
+  done
+
+  echo -n \
+    | openssl s_client -starttls smtp -crlf -connect $SMTP \
+    | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > "$o365cert"
+
+  # restrict permission on the certificate
+  chmod 600 $o365cert
+
+  # List certificates in CERT_DIR (-trustargs SSL, email, object signing)
+  # certutil -L -d $CERT_DIR
+fi
+
+echo -e "\n\n${0##*/}: ~/${mailrc##*/} file was updated successfully. \c"
+echo -e "You may use mail, mailx, nail application normally.\n"

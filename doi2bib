@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# usage:
+#   doi2bib -d DOI | -i DOILISTFILE [-o OUTBIBFILE]
+#
+# arguments:
+#   -d DOI: doi URL reference e.g.,
+#           http://dx.doi.org/10.1002/2014GL062882 or simply
+#           10.1002/2014GL062882
+#
+#   -i DOILISTFILE: A text file containing doi lists of multiple references
+#           Note: Use either -d or -i option
+#
+#   -o OUTBIBFILE (optional): Filename to write bibtex entries, default is
+#           screen-dump
+#
+# requires:
+#   cURL
+#
+# author:  yaswant.pradhan 2015-08-26
+# Reference: http://crosscite.org/cn/
+# -----------------------------------------------------------------------------
+
+# usage -----------------------------------------------------------------------
+usage() {
+cat <<EOF
+
+Usage:
+    $(basename $0) -d DOI | -i DOILISTFILE [-o OUTBIBFILE]
+EOF
+}
+
+# Parse command line arguments -----------------------------------------------------
+while [ ! -z "$1" ]; do
+    if [ -z "$2" ]; then
+        echo "Input option ($1) requires a parameter."
+        exit 1
+    fi
+
+    case $1 in
+        "-d") DOI=$2; shift ;;
+        "-i") DOILISTFILE=$2; shift ;;
+        "-o") OUTBIBFILE=$2; shift ;;
+        *) echo "Did not recognise input ($1)."; exit 1;;
+    esac
+    shift
+done
+
+# Check arguments:
+[ -z "$DOI" ] && [ -z "$DOILISTFILE" ] && { usage && exit ; }
+
+# Check conflicting options:
+[ ! -z "$DOI" ] && [ ! -z "$DOILISTFILE" ] && \
+{ echo "Conflicting options [-d|-i]"; usage && exit ; }
+
+# Construct doi array:
+[ -f "$DOILISTFILE" ] && dois=( $(cat "$DOILISTFILE") ) || dois=$DOI
+
+
+# Retrieve entries ------------------------------------------------------------
+echo -e "Retrieving ${#dois[@]} entrie(s)..\n"
+base_url='http://dx.doi.org'
+cnt=1
+for doi in ${dois[@]}; do
+    [[ $doi != $base_url* ]] && doi=$base_url/$doi
+    if [ -z "$OUTBIBFILE" ]; then
+        curl -LH "Accept: text/bibliography; style=bibtex" $doi
+        echo
+    else
+        [[ $cnt -eq 1 ]] && echo > "$OUTBIBFILE" || echo >> "$OUTBIBFILE"
+        curl -sLH "Accept: text/bibliography; style=bibtex" $doi >> "$OUTBIBFILE"
+    fi
+    cnt=$(( cnt+1 ))
+done
+

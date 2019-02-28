@@ -1,0 +1,12 @@
+#!/bin/bash
+# usage: strjoin delimiter values
+# examples:
+#   strjoin , a "b c" d #a,b c,d
+#   strjoin / var local tmp #var/local/tmp
+#   strjoin , "${FOO[@]}" #a,b,c
+# function strjoin() { local IFS="$1"; shift; echo "$*"; }
+# -----------------------------------------------------------------------------
+
+_IFS="$IFS"
+IFS="$1"; shift; echo "$*";
+IFS="$_IFS"

@@ -1,0 +1,13 @@
+#!/bin/bash
+#
+# Convert image file to gif using imagemagick
+#
+# usage:
+#   to_gif image_file [gif_file]
+#
+# yaswant.pradhan
+# -----------------------------------------------------------------------------
+
+[[ $# -lt 1 ]] && echo "usage: ${0##*/} image_file [gif_file]" && exit
+[[ $# -lt 2 ]] && giffile="${1%.*}.gif" || giffile="$2"
+[ -f "$1" ] && convert $1 -trim +repage $giffile || echo "$1 does not exist."

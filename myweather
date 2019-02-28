@@ -1,0 +1,304 @@
+#!/bin/bash
+#
+# myweather
+# usage: myweather --help
+# Requires active internet connection
+#
+# yaswant.pradhan (Feb 2015)
+# 2015-07-22: v-0.1: Beta release (yp)
+# 2015-08-14 v1.0: First stable release with minor bug fixes (yp)
+# 2016-01-25 v1.1: Fix error for non-reporting Tdew/RH stations (yp)
+# -----------------------------------------------------------------------------
+# set -e
+VERSION=1.1
+
+# -----------------------------------------------------------------------------
+# Create a local database file to store METAR/TAF station details
+# -----------------------------------------------------------------------------
+user=$(id -u -n)                            # user name
+DBHOME=$(readlink -m ~)/.myweather          # user home
+mkdir -p $DBHOME
+
+# -----------------------------------------------------------------------------
+# Download stations database files
+# -----------------------------------------------------------------------------
+ccccURL='https://drive.google.com/uc?export=download&id=0B6qnynyDdeRjLVpWUko4NG9lTms'
+bbsssURL='https://drive.google.com/uc?export=download&id=0B6qnynyDdeRjZThRNWtDbFNJX3M'
+ccccfile='nsd_cccc.txt'
+bbsssfile='nsd_bbsss.txt'
+
+if [ ! -f "$DBHOME/$ccccfile" ] \
+  || test $(find $DBHOME -name "$ccccfile" -mtime +30); then
+
+    echo -e "Updating cccc database.. \c"
+    cd $DBHOME && curl -sL $ccccURL > $ccccfile
+    [[ $? -eq 0 ]] && echo -e "done." || echo $?
+fi
+
+if [ ! -f "$DBHOME/$bbsssfile" ] \
+  || test $(find "$DBHOME" -name "$bbsssfile" -mtime +30); then
+
+    echo -e "Updating bbsss database.. \c"
+    cd $DBHOME && curl -sL $bbsssURL > $bbsssfile
+    [[ $? -eq 0 ]] && echo -e "done." || echo $?
+fi
+
+CURL_OPT='-C - --retry 2 -m 60 '
+
+# -----------------------------------------------------------------------------
+# Get weather data
+# -----------------------------------------------------------------------------
+METAR_URL='ftp://tgftp.nws.noaa.gov/data/observations/metar/decoded/'
+SYNOP_URL='http://www.ogimet.com/cgi-bin/getsynop'
+datfile='/var/tmp/weather.met'
+stnfile='/var/tmp/weather.stn'
+
+hr(){ for i in {1..68}; do echo -e '-\c'; done; echo; }
+version(){
+cat<<EOF
+${0##*/}: version-$VERSION
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+SYNOP and METAR reports are obtained from http://www.ogimet.com and ftp://tgftp.nws.noaa.gov respectively.
+
+Written by Yaswant Pradhan.
+EOF
+}
+usage(){
+more<<EOF
+${0##*/} prints recent past weather summary based on METAR/SYNOP observations for a given SYNOP/METAR/TAF location.
+
+Usage: ${0##*/} [OPTION] [Station]
+
+Arguments:
+  Station             Station ID can be any one of the following:
+    - a SYNOP 5 digit code (eg. 03839 for Exeter Airport), or
+    - an ICAO 4 caracter code (eg. EGTE for Exeter Airport), or
+    - part of stations or country name (use -i to ignore case)
+
+Options:
+  -h, -?, --help      show this message
+  -i, --ignore-case   recursively search (ignore case while searching the location database) any matching patterns from stationid argument.
+  -r, --reset         reset default station
+  -s, --synop         display weather summary based on SYNOP report. def: METAR report
+  -v, --version       print version number and exit
+
+Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+EOF
+}
+
+
+GREPOPT=
+syn=
+while [[ $1 == -* ]]; do
+  case $1 in
+    -h|--help|-\?) usage; exit 0;;
+    -i|--ignore-case) GREPOPT='-i'; shift 1;;
+    -r|--reset) rm -f $DBHOME/default.station; shift 1;;
+    -s|--synop) syn=1; shift 1;;
+    -v|--version) version; exit 0;;
+    --) shift; break;;
+    -*) echo -e "\nE: invalid option $1\n"; usage; exit 1;;
+  esac
+done
+
+# Set Default station (required first time):
+if [[ $# -eq 0 ]]; then
+  if [ ! -f $DBHOME/default.station ]; then
+    read -s -n1 -p "Do you wish to set default station? [Y/n] " key
+
+    case $key in
+      "Y" | "y")
+        printf "\nPlease enter the 4 digit ICAO code";
+        printf " (see $DBHOME/$ccccfile): ";
+        read def_stn ;
+        echo $def_stn > $DBHOME/default.station;
+        printf "\n** Info: Your default station is now set to $def_stn **\n" ;;
+
+      "N" | "n" | *)
+        printf "\nUsing program default station EGTE\n";
+        def_stn=EGTE ;;
+      #*) echo "Not so cool" && exit ;;
+    esac
+
+  else
+    def_stn=$(cat "$DBHOME/default.station")
+  fi
+fi
+
+
+STN=${1:-$def_stn}
+
+if [[ "$syn" -eq 1 ]]; then ## Return combined country-code and station-id
+
+  cat $DBHOME/$bbsssfile |grep $GREPOPT "$STN" > $stnfile
+  STNID=( $(cat $stnfile |awk -F ";" '{printf "%s%s ",$1,$2}') )
+  stat=$?
+  if [[ "$stat" -eq 0 ]]; then
+    ii=0
+
+    while read -r line || [[ -n $line ]]; do
+      station_name[ii]=$(echo $line |cut -d';' -f4)
+      country_name[ii]=$(echo $line |cut -d';' -f6)
+      lat[ii]=$(echo $line | awk -F"[;]" '{printf "%s", $8}')
+      lon[ii]=$(echo $line | awk -F"[;]" '{printf "%s", $9}')
+      elev[ii]=$(echo $line | awk -F"[;]" '{printf "%s", $12}')
+      alt_code[ii]=$(echo $line | awk -F ";" '{printf "%s",$3}')
+      ii=$((ii + 1))
+    done < $stnfile
+
+  fi
+else  ## Return ICAO code
+  cat $DBHOME/$ccccfile | grep $GREPOPT "$STN" > $stnfile
+  STNID=( $(cat $stnfile | cut -d";" -f1) ); stat=$?
+  if [[ "$stat" -eq 0 ]]; then
+    ii=0
+
+    while read -r line || [[ -n $line ]]; do
+      station_name[ii]=$(echo $line | cut -d';' -f4)
+      country_name[ii]=$(echo $line | cut -d';' -f6)
+      lat[ii]=$(echo $line | awk -F"[;]" '{printf "%s", $8}')
+      lon[ii]=$(echo $line | awk -F"[;]" '{printf "%s", $9}')
+      elev[ii]=$(echo $line | awk -F"[;]" '{printf "%s", $12}')
+      alt_code[ii]=$(echo $line | awk -F ";" '{printf "%s%s",$2,$3}')
+      ii=$((ii + 1))
+    done < $stnfile
+
+  fi
+fi
+
+[[ "$stat" -ne 0 ]] && exit $stat
+[[ ${#STNID[@]} -eq 0 ]] \
+  && echo "No record found. Tip: use -i option to ignore case OR \
+provide exact ICAO airport code or SYNOP station id."
+
+# Now return decoded weather information
+k=1
+c=0
+
+nStns="${#STNID[@]}"
+for i in ${STNID[@]}; do
+  echo -e "\n[$k] ${station_name[c]}, ${country_name[c]}\
+  (${lat[c]}/${lon[c]}  Elevation:${elev[c]}m)"
+
+  if [[ "$syn" -ne 1 ]]; then
+  # ---------------------------------------------------------------------------
+  #                 METAR Report
+  # ---------------------------------------------------------------------------
+    curl --fail "${METAR_URL}${i}.TXT" &>/dev/null
+
+    if [[ "$?" -eq 0 ]]; then
+
+      curl $CURL_OPT -s "${METAR_URL}${i}.TXT" > "$datfile"
+
+      if [[ "$?" -eq 0 ]]; then
+        dt=($(head -n 2 $datfile | tail -n 1 | awk '{printf "%s %s",$9,$10}'))
+        hh=$(echo ${dt[1]} | cut -c1-2)
+        mn=$(echo ${dt[1]} | cut -c3-4)
+
+        hr;
+        printf "%63s\n" \
+"Weather summary at ${STNID[c]} / ${alt_code[c]} on ${dt[0]} at $hh:$mn UTC"
+        hr;
+
+        cat $datfile | head -n -2 | tail -n +3 \
+          | awk -F ":" '{printf " %20s:%s\n",$1,$2}'
+      fi
+
+    else
+        echo "** E: No METAR for ($i) ${alt_code[c]} **"
+        nStns=$(( nStns - 1 ))
+    fi
+  else
+  # ---------------------------------------------------------------------------
+  #                 SYNOP Report
+  # ---------------------------------------------------------------------------
+    cHour=$(date -u +%H)
+    [[ "10#$cHour" -eq 0 ]] \
+      && begin0=$(date -d 'yesterday' +'%Y%m%d')0000 \
+      || begin0=$(date +'%Y%m%d')0000
+
+    BEGIN=${2:-"$begin0"} # TODO: add an option to keep the raw reports
+
+    curl --fail "${SYNOP_URL}?begin=${BEGIN}&block=${STNID[c]}" &>/dev/null
+
+    if [[ "$?" -eq 0 ]]; then
+      curl $CURL_OPT -s \
+        "${SYNOP_URL}?begin=${BEGIN}&block=${STNID[c]}" > $datfile
+
+      if [[ "$?" -eq 0 ]] && [[ $(cat $datfile | wc -l) -ne 0 ]] ; then
+
+        rep=$(tail -1 $datfile)
+
+        dt=($(echo $rep \
+              | awk -F "," '{printf "%s.%s.%s %s:%s", $2,$3,$4,$5,$6}'))
+
+        hr
+        printf "%63s\n" \
+"Weather summary at ${STNID[c]} / ${alt_code[c]} on ${dt[0]} at ${dt[1]} UTC"
+        hr
+
+        # Decode/estimate SYNOP report
+        ## 1. Temperature:
+        tempC=$(echo $rep | awk '{print $6}')
+        id=$(echo $tempC | cut -c1)
+        sn=$(echo $tempC | cut -c2)
+        [[ "$id" -eq 1 ]] && \
+            T=$(echo $tempC | cut -c3-5 | awk '{print $1/10}')
+        [[ "$sn" -eq 1 ]] && T=-"${T}"
+        cT=$(echo -e "${T} \xc2\xb0C")
+
+        ## 2. Dew point temp or RH:
+        tempC=$(echo $rep | awk '{print $7}')
+        id=$(echo $tempC | cut -c1)
+        sn=$(echo $tempC | cut -c2) # sign of temp (0=positive, 1=negative, 9=RH)
+
+        ## Print result
+        # 1. Temperature
+        echo -e " Temperature: $cT" | awk -F ":" '{printf" %20s:%s\n",$1,$2}'
+
+        # 2. Dew Point and RH
+        if [[ $sn =~ ^-?[0-9]+$ ]]; then
+            [[ "$id" -eq 2 ]] && cDP=$(echo $tempC | cut -c3-5) || break
+            if [[ "$sn" -eq 9 ]]; then
+                cRH=$cDP
+            else
+              # Calculate RH from DewPoint temp
+              # See http://andrew.rsmas.miami.edu/bmcnoldy/Humidity.html
+              tdok=1
+              [[ "$sn" -eq 1 ]] && td=-$cDP || td=$cDP
+              cRH=$(echo "100*e((17.625*"$td"/10)/(243.04+"$td"/10)) / \
+                          e((17.625*"$T")/(243.04+"$T"))" | bc -l)
+            fi
+            [[ "$tdok" -eq 1 ]] \
+              && td=$(echo "$td" | awk '{print $1/10}')
+            echo -e " Dew Point: $td \xc2\xb0C" \
+              | awk -F ":" '{printf" %20s:%s\n",$1,$2}'
+            echo -e " Relative humidity: $cRH" \
+              | awk -F ":" '{printf" %20s: %.1f %%\n",$1,$2}'
+        fi
+
+      else
+        echo "    E: No SYNOP for $i (${alt_code[c]})"
+        nStns=$(( $nStns - 1 ))
+      fi
+
+    else
+        echo "    E: No SYNOP for $i (${alt_code[c]})"
+        nStns=$(( nStns - 1 ))
+    fi
+
+  fi
+
+  c=$((c + 1))
+  k=$((k + 1))
+
+done
+
+
+# Housekeep:
+[[ "$nStns" -gt 1 ]] \
+  && echo -e "\n\n Valid (Total) Stations: $nStns (${#STNID[@]})"
+rm -f $datfile $stnfile

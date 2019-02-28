@@ -21,13 +21,13 @@
 # 2018-11-07 Update with various command-line options. yp.
 # 2018-11-07 Auto-switch remote server when one is down. yp.
 # =============================================================================
-
-OPTS=$(getopt -o c:r:hvk:p:P:s: \
-  --long collection:,remote-dir:,directory-prefix:,help,version,key:,product:,server: \
-  -n 'get_modaps' -- "$@")
-
-[ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
-eval set -- "$OPTS"
+if [[ "$OSTYPE" == 'linux-gnu' ]]; then
+  OPTS="$(getopt -o c:hk:p:P:r:s:v \
+    --long collection:,help,key:,product:,directory-prefix:,remote-dir:,server:,version \
+    --name "$0" -- "$@")"
+  [ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
+  eval set -- "$OPTS"
+fi
 
 
 # Default Options -------------------------------------------------------------
@@ -46,8 +46,8 @@ msg() { echo -e "$(date -u +'%F %R:%S') $*" ;}
 
 check_remote_host()
 { # Check if any of the remote servers are up and running (rc: 2 = fail)
-  def_server=${1:-$SERVER}
-  alt_server=${2:-$ALT_SERVER}
+  local def_server=${1:-$SERVER}
+  local alt_server=${2:-$ALT_SERVER}
   curl --fail -L "$def_server" &>/dev/null \
     || { curl --fail -L "$alt_server" &>/dev/null && SERVER=$ALT_SERVER ;} \
     || { echo  "** ERROR: Remote servers not available. **"; return 2 ;}

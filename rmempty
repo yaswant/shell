@@ -1,0 +1,117 @@
+#!/bin/bash
+#
+# rmempty
+#       Remove empty files/directories in a specific path
+#
+# Usage:
+#       rmempty [options] [path]
+#
+#       path: specific path (def: $PWD)
+#       type: file or directory [-f|-d] (def: both)
+#
+# Warning:
+#       Be careful when running rmempty on Python package folders where empty
+#       __init.py__ files are legit.  Use "-i __init__.py" option in such cases
+#
+# yaswant.pradhan
+# 2018-07-08 add modification time options. yp.
+# 2018-10-12 add option to remove broken links. yp.
+# 2018-10-12 add option to ignore files. yp.
+# ----------------------------------------------------------------------------
+version=2018.10.1
+
+version(){
+cat<<EOF
+${0##*/} $version
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Yaswant Pradhan.
+EOF
+}
+usage(){
+cat<<EOF
+${0##*/} search and remove empty files or broken links.
+
+Usage: ${0##*/} [OPTION] [PATH]
+
+PATH  search path (def: current working directory)
+
+Options:
+      -atime n          search and remove files which were last accessed n days ago. n, +n and -n indicate exactly, more than and less than n days ago, respectively
+      -ctime n          search and remove files which were last changed n days ago. n, +n and -n indicate exactly, more than and less than n days ago, respectively
+      -mtime n          search and remove files which are last modified n days ago. n, +n and -n indicate exactly, more than and less than n days ago, respectively
+      -daystart         measure times (for -atime, -ctime and -mtime) from the beginning of today rather than from 24 hours ago
+  -d, --dir             search (and remove) directories only
+  -f, --file            search (and remove) files only
+  -i, --ignore pattern  do not delete empty files matching pattern, which may be needed (eg __init__.py)
+  -l, --levels n        descend to n levels (non negative integer)
+  -n, --dry-run         dry run or Print-only mode. This is used as default if <path> is not present
+  -V, --verb            switch to verbose mode i.e. list deleted files
+  -x, --link            search and remove broken links only
+  -v, --version         print version and exit
+  -h, --help            print this help and exit
+
+Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+EOF
+}
+
+DRY_RUN=0
+LEV=
+OPT=
+OPT2=
+TAG='files and directories'
+
+while [[ $1 == -* ]]; do
+  case $1 in
+    -atime)
+          OPT="$OPT -atime $2"; shift 2 ;;
+    -ctime)
+          OPT="$OPT -ctime $2"; shift 2 ;;
+    -daystart)
+          OPT="$OPT -daystart"; shift 1 ;;
+    -d|--dir)
+          TAG='empty directories'; OPT="$OPT -type d"; shift 1 ;;
+    -f|--file)
+          TAG='empty files'; OPT="$OPT -type f"; shift 1 ;;
+    -i|--ignore)
+          OPT="$OPT ! -name $2"; shift 2 ;;
+    -l|--level)
+          LEV=" -maxdepth $2"; shift 2 ;;
+    -n|--dry-run)
+          DRY_RUN=1; shift 1 ;;
+    -mtime)
+          OPT="$OPT -mtime $2"; shift 2 ;;
+    -V|--verb)
+          OPT2="$OPT2 -print"; shift 1 ;;
+    -v|--version)
+          version; exit 0 ;;
+    -x|--link)
+          TAG='broken links'; OPT="$OPT -xtype l"; shift 1 ;;
+    --)
+          shift; break ;;
+    -h|--help)
+          usage; exit 0 ;;
+    -*) echo "invalid option: $1" 1>&2; usage; exit 1;;
+  esac
+done
+
+# Set empty option for files and directories only
+[[ "$TAG" == 'broken links' ]] || OPT="$OPT -empty"
+ROOT=${1:-$PWD}
+echo -e "Search/Clean ${TAG} from $ROOT ..\n"
+# echo "$OPT $OPT2"
+# exit
+
+# If path is not specified then switch to dry-run mode in the current path
+# and exit
+if [[ $# -lt 1 || $DRY_RUN -eq 1 ]]; then
+  echo -e "\n === dry-run: ${0##*/}: $TAG: begin ===\n"
+  find $ROOT$LEV$OPT -print | nl -p || exit $?
+  echo -e "\n === dry-run: ${0##*/}: $TAG: end ===\n"
+  exit 0
+fi
+
+# Delete empty path(s) or broken links
+find $ROOT$LEV$OPT -delete $OPT2 | nl -p

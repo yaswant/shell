@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# lsempty
+#       List empty files/directories in a specific path
+#
+# Usage:
+#       lsempty [path] [depth]
+#
+#       path: specific path (def: $PWD)
+#       depth: search levels under path (def: 100)
+#
+# yaswant.pradhan
+# ----------------------------------------------------------------------------
+set -e
+SP="${1:-$PWD}"
+MD="${2:-100}"
+
+[ -z $SP ] && SP=$PWD
+[ -d $SP ] || { echo "cannot access $SP: No such directory"; exit 1; }
+
+echo -e "List of empty files/directories in $SP: \n"
+find $SP -maxdepth $MD -empty -printf "%u %Y %p  ..%sb\n" | sort | nl -p
+

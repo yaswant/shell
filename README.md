@@ -17,6 +17,8 @@ GNU/Linux operating system with bash.
 Very few scripts have been adjusted to work on mac OS (POSIX.2).
 
 ```
+# Get your OS  from a terminal
+
 $ echo $OSTYPE
 GNU/Linux
 ```

@@ -117,8 +117,7 @@ echo -e "* ENDPOINTS=$ENDPOINTS\n* REMOTE_DIR=archives/${REM_PATH}"
 echo -e "* LOCAL_DIR=$WORK_DIR"
 echo "************************************************************************"
 
-mkdir -p "$WORK_DIR"
-cd "$WORK_DIR" || exit
+mkdir -p "$WORK_DIR" && cd "$WORK_DIR" || exit
 
 # Update file lists -----------------------------------------------------------
 get_remote_list() { # Update file lists on remote server

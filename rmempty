@@ -101,8 +101,6 @@ done
 [[ "$TAG" == 'broken links' ]] || OPT="$OPT -empty"
 ROOT=${1:-$PWD}
 echo -e "Search/Clean ${TAG} from $ROOT ..\n"
-# echo "$OPT $OPT2"
-# exit
 
 # If path is not specified then switch to dry-run mode in the current path
 # and exit

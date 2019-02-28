@@ -1,0 +1,24 @@
+#!/bin/bash
+# usage: avi2mp4 File.avi [File.mp4]
+#
+# Requires:
+#   ffmpeg or avconv
+#
+# yaswant.pradhan
+# -----------------------------------------------------------------------------
+
+# Check if conversion application is available for conversion:
+app=$(command -v ffmpeg || command -v avconv)
+[[ "$app" ]] \
+  || { printf "** neither avconv nor ffmpeg found on system **\n"; exit 1; }
+
+# Parse inputs:
+[ -f "$1" ] \
+  || { echo "usage: $(basename $0) infile.avi [outfile.mp4]"; exit 2; }
+
+# Define Output filename:
+outfile=${2:-${1%%.avi}.mp4}
+
+# Convert file:
+printf "converting $1 -> $outfile\n"
+$app -i "$1" -c:v libx264 -c:a copy -preset ultrafast "$outfile"

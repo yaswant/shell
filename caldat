@@ -1,0 +1,83 @@
+#!/bin/bash
+set -e
+
+# ----------------------------------------------------------------------------
+TEMP=$(getopt -o f:hvV --long format:,help,version,VERBOSE \
+              -n 'caldat' -- "$@")
+[ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
+eval set -- "$TEMP"
+
+version(){
+cat<<EOF
+${0##*/} 2019.01.1
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Yaswant Pradhan.
+EOF
+}
+usage(){
+cat<<EOF
+Get calendar date time from given julian day using Unix datetime.
+
+Usage: ${0##*/} [OPTIONS] [JULDAY]
+
+JULDAY  Input Julian day (see julday(1)). Default is for system date time.
+
+Options:
+
+  -f, --format STRING
+      Specify format for output caledar date. Default is ’%FT%TZ’.
+      See date(1) for valid date format specifications.
+  -h, --help
+      Show this help and exit.
+  -v, --version
+      Show version and exit.
+  -V, --VERBOSE
+      Increase verbosity and show intermediate numbers used in caldat calculation.
+
+Julian dates (abbreviated JD) are simply a continuous count of days and fractions since noon Universal Time on January 1, 4713 BC (on the Julian calendar).  Almost 2.5 million days have transpired since this date.Julian dates are widely used as time variables within astronomical software. Typically, a 64-bit floating point (double precision) variable can represent an epoch expressed as a Julian date to about 1 millisecond precision. Note that the time scale that is the basis for Julian dates is Universal Time, and that 0h UT corresponds to a Julian date fraction of 0.5.
+
+Unix time, also known as Unix Epoch time is a system for describing a point in time. It is the number of seconds that have elapsed since 00:00:00 Thursday, 1 January 1970 UTC, minus leap seconds.  Every day is treated as if it contains exactly 86400 seconds, so leap seconds are to be subtracted since the epoch. The Unix epoch corresponds to the Julian day of 2440587.5
+
+Examples:
+Get julday on 26-Jan-1950 at 0:0:0:
+    julday 01/26/1950 -t 0:0:0
+        2433307.5
+Convert above julian day back to calendar date:
+    caldat 2433307.5
+        1950-01-26T00:00:00Z
+Get the day of year, the week day and week number for the above julian day:
+    caldat 2433307.5 -f "%j %A %w"
+        026 Thursday 4
+
+Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+EOF
+}
+# ----------------------------------------------------------------------------
+
+while true; do
+  case "$1" in
+    -f |--format )  fmt="$2"; shift 2 ;;
+    -h |--help )    usage; exit 0 ;;
+    -v |--version ) version; exit 0 ;;
+    -V |--VERBOSE)  verb=1; shift 1 ;;
+    -- )            shift; break ;;
+    * )             break ;;
+  esac
+done
+
+_julday="${1:-$(julday $(date -u +'%D %T') %f)}"
+fmt=${fmt:-'%FT%TZ'}
+JD_UNIX=2440587.5  # Unix epoch in days.
+
+seconds=$(echo $_julday $JD_UNIX | awk '{printf "%f", ($1 - $2) * 86400.0}')
+if (( $verb )); then
+  echo "Unix Julian Epoch = $JD_UNIX"
+  echo "Input Julian day = $_julday"
+  echo "Equivalent Unix seconds = $seconds"
+  echo
+fi
+
+date -u --date @$seconds +"$fmt"

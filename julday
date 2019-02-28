@@ -1,0 +1,147 @@
+#!/bin/bash
+# NAME
+#       julday - Get julian day from a given calendar date [time]
+#
+# SYNOPSYS
+#       julday [DATE] [TIME] [format]
+#
+#       DATE    Specify date in valid FORMAT (see date) or blank or - for
+#               current date
+#       TIME    Specify time in valid FORMAT (see date) or blank or - for
+#               current time
+#       format  Specify output format. default is '%.12g'.  Note: julday returns
+#               real numbers, so to get the integer-only part specify '%d' or
+#               '%i' and %.0f for round-off integer value (with floating-point
+#               limitations - Note: with %.0f format specification, both
+#               printf "%.0f" 1.5 and printf "%.0f" 2.5
+#               will return 2, so be careful).
+#
+# EXAMPLE
+#   current date and time
+#       julday [or] julday -
+#   current date at 0 UTC
+#       julday - -  [or] julday - 0  [or] julday - 0:0:0 or julday - 00:00:00
+#   26-Jan-1950 current time
+#       julday 01/26/1950 [or] julday 1950-01-26
+#   26-Jan-1950 0 UTC integer part only
+#       julday 1950-01-26 - %d
+#   26-Jan-1950 0 UTC rounded with limitations
+#       julday 1950-01-26 - %.f
+#
+# SEE ALSO
+#     caldat
+#
+# Julian date:
+# https://aa.usno.navy.mil/data/docs/JulianDate.php
+#   Julian dates (abbreviated JD) are simply a continuous count of days and
+#   fractions since noon Universal Time on January 1, 4713 BC (on the Julian
+#   calendar). Almost 2.5 million days have transpired since this date.
+#   Julian dates are widely used as time variables within astronomical software.
+#   Typically, a 64-bit floating point (double precision) variable can represent
+#   an epoch expressed as a Julian date to about 1 millisecond precision. Note
+#   that the time scale that is the basis for Julian dates is Universal Time,
+#   and that 0h UT corresponds to a Julian date fraction of 0.5.
+#
+# Unix time:
+# https://en.wikipedia.org/wiki/Unix_time
+#   Also known as Unix Epoch time is a system for describing a point in time.
+#   It is the number of seconds that have elapsed since
+#   00:00:00 Thursday, 1 January 1970 UTC, minus leap seconds. Every day is
+#   treated as if it contains exactly 86400 seconds, so leap seconds are to be
+#   subtracted since the epoch.
+#
+#   The Unix epoch corresponds to the Julian day of 2440587.5
+#
+# 2019-01-29 yaswant.pradhan (implementation using UNIX datetime)
+# -----------------------------------------------------------------------------
+set -e
+
+TEMP=$(getopt -o f:ht:vV --long format:,help,time:,version,VERBOSE \
+              -n 'julday' -- "$@")
+[ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
+eval set -- "$TEMP"
+
+version(){
+cat<<EOF
+${0##*/} 2019.01.1
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Yaswant Pradhan.
+EOF
+}
+
+usage(){
+cat<<EOF
+Get julian day from a given calendar date [time].
+
+Usage: ${0##*/} [OPTIONS] [DATE]
+
+DATE  Input date in valid format (See date(1)). Default is current system date.
+
+Options:
+  -f, --format STRING
+      Specify format for output Julian Day. Default is %0.12g. See printf(1).
+  -t, --time STRING
+      Specify time in Julian Day calculation, default is to use current system
+      time.
+  -h, --help
+      Show this help and exit
+  -v, --version
+      Show version and exit
+  -V, --VERBOSE
+      Increase verbosity and show intermediate numbers used in julday calculation.
+
+Julian dates (abbreviated JD) are simply a continuous count of days and fractions since noon Universal Time on January 1, 4713 BC (on the Julian calendar).  Almost 2.5 million days have transpired since this date.Julian dates are widely used as time variables within astronomical software. Typically, a 64-bit floating point (double precision) variable can represent an epoch expressed as a Julian date to about 1 millisecond precision. Note that the time scale that is the basis for Julian dates is Universal Time, and that 0h UT corresponds to a Julian date fraction of 0.5.
+
+Unix time, also known as Unix Epoch time is a system for describing a point in time.  It is the number of seconds that have elapsed since 00:00:00 Thursday, 1 January 1970 UTC, minus leap seconds.  Every day is treated as if it contains exactly 86400 seconds, so leap seconds are to be subtracted since the epoch. The Unix epoch corresponds to the Julian day of 2440587.5
+
+Examples:
+Print julday for current date and time (2018-08-15 15:10:00):
+    julday
+        2458346.13
+
+Print julday for current date at midnight:
+    julday -t 0
+    julday --time=00:00:00
+        2458345.50
+
+julday on 26-Jan-1950 at 0 UTC, integer part only:
+    julday 1950-01-26 -t 0 -f %d
+        2433307
+
+julday on 26-Jan-1950 0 UTC (rounded integer with limitations):
+    julday 1950-01-26 --time=0 --format=%.f
+        2433308
+
+Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+EOF
+}
+
+while true; do
+  case "$1" in
+    -f |--format ) _fmt="$2"; shift 2 ;;
+    -t |--time )   _time="$2"; shift 2 ;;
+    -h |--help )   usage; exit 0 ;;
+    -v |--version) version; exit 0 ;;
+    -V |--VERBOSE) verb=1; shift 1 ;;
+    -- )           shift; break ;;
+    * )            break ;;
+  esac
+done
+
+_date_="${1:-$(date -u +%F)}"
+_time_="${_time:-$(date -u +%T)}"
+_fmt_=${_fmt:-'%.12g'}
+
+JD_UNIX_EPOCH=2440587.5
+seconds=$(date -d ${_date_}Z${_time_} +%s )
+if (( $verb )); then
+  echo "Unix Julian Epoch = $JD_UNIX_EPOCH"
+  echo "Input Date and Time = $_date_ $_time_"
+  echo "Equivalent Unix seconds = $seconds"
+  echo
+fi
+# printf "${_fmt_}\n" $(echo "$seconds / 86400.0 + $JD_UNIX_EPOCH" | bc -l)
+echo "$seconds $JD_UNIX_EPOCH $_fmt_" | awk '{printf $3"\n", $1/86400.0 + $2}'

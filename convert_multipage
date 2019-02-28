@@ -57,6 +57,8 @@ Options:
         output format (def: gif)
     -j, --joinpdf
         join padf pages to a single pdf file
+    -l, --logofile
+        specify full path to logo file (default: ~/logo.gif)
     -lg, --logoadd
         add Met Office logo
     -lgp, --logoposition <string>
@@ -116,11 +118,11 @@ COMPRESS=   # Set output image depth to 8bit
 CMTMP=$(mktemp -d ${TMPDIR:-$SCRATCH/tmp}/convert-multipage-${USER}.XXXXXX)
 #CMTMP="${TMPDIR:-$SCRATCH/tmp}/convert-multipage-${USER}"
 #mkdir -p $CMTMP                            # create CMTMP if necessary
-LOGOFILE='/home/h05/fra6/bin/newlogo.gif'  # Logofile to add on the figure
-TMPS1="${CMTMP}/temp1.ps"                  # temporary psfile 1
-TMPS2="${CMTMP}/temp2.ps"                  # temporary psfile 2
-TMLOGO="${CMTMP}/logo.gif"                 # temporary logofile
-TMOUT="${CMTMP}/out"                       # temporary outfile base (no extn)
+LOGOFILE='~/logo.gif'                       # Logofile to add on the figure
+TMPS1="${CMTMP}/temp1.ps"                   # temporary psfile 1
+TMPS2="${CMTMP}/temp2.ps"                   # temporary psfile 2
+TMLOGO="${CMTMP}/logo.gif"                  # temporary logofile
+TMOUT="${CMTMP}/out"                        # temporary outfile base (no extn)
 
 
 ## Parse optional arguments --------------------------------------------------
@@ -146,6 +148,8 @@ while [[ $1 == -* ]]; do
             OFMT=$2; shift 2;;
     -j|--joinpdf)
             PDFJOIN=T; shift 1;;
+    -l|--logofile)
+            LOGOFILE=$2; shift 2;;
     -lg|--logoadd)
             addLogo=T; shift 1;;
     -lgp|--logoposition)
@@ -344,7 +348,7 @@ while (( $PAGE <= $NPAGES )); do
 
   ## Add Met Office logo ---------------------------------------------------
   if [[ $addLogo = T ]] && [ -f $LOGOFILE ] && [[ $OFMT != pdf ]]; then
-    echo " Adding Met Office Logo to ${OUTFILE}${pnum}.${OFMT}"
+    echo " Adding Custom Logo to ${OUTFILE}${pnum}.${OFMT}"
     logoPos=${logoPos:-northwest}
     logoResize=${logoResize:-100%}
 

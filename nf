@@ -10,4 +10,4 @@
 
 FILE_PATH=${1:-$(pwd)}
 # echo $FILE_PATH
-ls -1 $FILE_PATH 2>/dev/null |wc -l
+/bin/ls -1 $FILE_PATH 2>/dev/null | wc -l

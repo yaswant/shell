@@ -62,7 +62,7 @@ done
 # Install ORAC dependencies if specified
 if (( $INSTALL_DEPS )); then
     echo "Installing ORAC dependencies..."
-    ~fra6/bin/install_orac_depends.sh \
+    install_orac_depends.sh \
         -d "$LIB_ROOT" \
         -e "$LIB_ROOT/extract" \
         -i "$LIB_ROOT/orac-deps" \

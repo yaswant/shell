@@ -9,12 +9,12 @@
 #   DATE2   Last date (default is Today)
 #
 # requires:
-#   date2julian
+#   date2julian, gnu date
 #
 # yaswant.pradhan
 # -----------------------------------------------------------------------------
 
-DTOJUL=/home/h05/fra6/bin/date2julian
+[ $(command -v date2julian 1>/dev/null) ] || echo 'not found'
 case "$#" in
     1 ) DATE1=$(date -d "$1" +%F)
         DATE2=$(date +%F)
@@ -27,6 +27,6 @@ case "$#" in
         ;;
 esac
 
-jd1=$($DTOJUL $DATE1)
-jd2=$($DTOJUL $DATE2)
+jd1=$(date2julian $DATE1)
+jd2=$(date2julian $DATE2)
 echo $(( jd2 - jd1 ))

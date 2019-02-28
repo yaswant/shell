@@ -23,8 +23,8 @@
 # =============================================================================
 if [[ "$OSTYPE" == 'linux-gnu' ]]; then
   OPTS="$(getopt -o c:hk:p:P:r:s:v \
-    --long collection:,help,key:,product:,directory-prefix:,remote-dir:,server:,version \
-    --name "$0" -- "$@")"
+                 --long collection:,help,key:,product:,directory-prefix:,remote-dir:,server:,version \
+                 --name "$0" -- "$@")"
   [ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
   eval set -- "$OPTS"
 fi

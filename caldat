@@ -2,10 +2,12 @@
 set -e
 
 # ----------------------------------------------------------------------------
-TEMP=$(getopt -o f:hvV --long format:,help,version,VERBOSE \
-              -n 'caldat' -- "$@")
-[ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
-eval set -- "$TEMP"
+if [[ "$OSTYPE" == 'linux-gnu' ]]; then
+  TEMP=$(getopt -o f:hvV --long format:,help,version,VERBOSE \
+                --name "$0" -- "$@")
+  [ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
+  eval set -- "$TEMP"
+fi
 
 version(){
 cat<<EOF

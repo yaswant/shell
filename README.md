@@ -11,12 +11,14 @@ but they should function as intended in other shell environments too.
 
 GNU/Linux operating system with bash.
 
-```
-$ uname -o
-GNU/Linux
+* BASH_VERSION 4.1.2+
+* GNU coreutils 8.28+
 
-$ echo $BASH_VERSION
-4.1.2(1)-release
+Very few scripts have been adjusted to work on mac OS (POSIX.2).
+
+```
+$ echo $OSTYPE
+GNU/Linux
 ```
 
 <!-- ### Installing

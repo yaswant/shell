@@ -19,7 +19,7 @@
 set -e
 
 # html2ps config file see (http://user.it.uu.se/~jan/html2psug.html)
-CONFIG_FILE='/home/h05/fra6/.html2psrc'
+CONFIG_FILE='~/.html2psrc'
 
 usage() { echo "usage: $(basename $0) URL [pdffile] [encoding]" ; }
 [[ $# -lt 1 ]] && usage && exit 1

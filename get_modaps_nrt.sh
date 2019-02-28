@@ -118,7 +118,7 @@ echo -e "* LOCAL_DIR=$WORK_DIR"
 echo "************************************************************************"
 
 mkdir -p "$WORK_DIR" && cd "$WORK_DIR" \
-  || { echo "Please specify WORK_DIR with -P option"; exit; }
+  || { echo "Please specify LOCAL_DIR with -P option"; exit; }
 
 # Update file lists -----------------------------------------------------------
 get_remote_list() { # Update file lists on remote server

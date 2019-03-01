@@ -1,4 +1,4 @@
-# shell
+# ysh
 
 A collection of useful general purpose shell scripts
 
@@ -51,7 +51,7 @@ GNU/Linux
 
 * **Yaswant Pradhan** - *Initial work* - [yaswant](https://github.com/yaswant)
 
-See also the list of [contributors](https://github.com/yaswant/shell/contributors) who participated in this project.
+See also the list of [contributors](https://github.com/yaswant/ysh/contributors) who participated in this project.
 
 ## License
 

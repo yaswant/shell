@@ -23,7 +23,7 @@ EOF
 }
 usage(){
 cat<<EOF
-${0##*/} Install Miniconda Python environment and additional packages.
+${0##*/} Install Miniconda Python environment and additional packages in Linux or MacOSX system.
 
 
 Usage: ${0##*/} [OPTION]
@@ -69,6 +69,8 @@ while true; do
     * )                   break ;;
   esac
 done
+
+[[ "OS" == 'Darwin' ]] && OS=MacOSX
 
 [ -e "$INSTALLER" ] \
   || INSTALLER="Miniconda${PYTHON_VERSION}-latest-${OS}-${MACHINE}.sh"

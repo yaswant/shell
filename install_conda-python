@@ -1,0 +1,112 @@
+#!/bin/bash
+set -e
+
+# ----------------------------------------------------------------------------
+if [[ "OSTYPE" == 'linux'* ]]; then
+  OPTS=$(getopt -o c:i:l:n:p:huv \
+                --long add-channel:,installer-path:,add-packages:,python-version:,prefix:,help,update,version \
+                -n ${0##*/} -- "$@")
+  [ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
+  eval set -- "$OPTS"
+fi
+
+version(){
+cat<<EOF
+${0##*/} 2019.02.1
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.
+There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Yaswant Pradhan.
+EOF
+}
+usage(){
+cat<<EOF
+${0##*/} Install Miniconda Python environment and additional packages.
+
+
+Usage: ${0##*/} [OPTION]
+
+Options:
+  -c, --add-channel[=CHANNEL]           add a new value to channels so conda looks for packages in this location
+  -i, --installer-path[=PATH]           install from specific installer script. By default, the script will attempt downloading the required installer script from the continuum repository at https://repo.continuum.io/miniconda
+  -l, --add-packages[='PACKAGE LIST']   install additional packages following succesful installation of miniconda python environment
+  -n, --python-version[=VALUE]          specify Python version to install. Default is to install latest version of Python 3
+  -p, --prefix[=PATH]                   specify full path where the environment will be installed. Default is ${HOME}
+  -u, --update                          update an existing installation
+  -h, --help                            print this help and exit
+  -v, --version                         print version and exit
+
+Examples:
+  ${0##*/} -c conda-forge -l 'iris xlrd' -p $SCRATCH -u  will add conda-forge priority channel and install/update Python $PYTHON_VERSION environment in $SCRATCH, and install iris and xlrd packages subsequently.
+
+Report bugs to <yaswant.pradhan>
+EOF
+}
+# ----------------------------------------------------------------------------
+# Defaults
+PYTHON_VERSION=3
+MACHINE=$(uname -m)
+OS=$(uname -s)
+CONDA_REPO='https://repo.continuum.io/miniconda'
+CHANNEL=
+PACKAGES=
+UPDATE_FLAG=
+PREFIX=$HOME
+
+while true; do
+  case "$1" in
+    -c |--add-channel)    CHANNEL="$2"        ; shift 2 ;;
+    -i |--installer-path) INSTALLER="$2"      ; shift 2 ;;
+    -l |--add-packages)   PACKAGES="$2"       ; shift 2 ;;
+    -n |--python-version) PYTHON_VERSION="$2" ; shift 2 ;;
+    -p |--prefix)         PREFIX="$2"         ; shift 2 ;;
+    -u |--update)         UPDATE_FLAG=' -u '  ; shift 1 ;;
+    -h |--help )          usage; exit 0 ;;
+    -v |--version )       version; exit 0 ;;
+    -- )                  shift; break ;;
+    * )                   break ;;
+  esac
+done
+
+[ -e "$INSTALLER" ] \
+  || INSTALLER="Miniconda${PYTHON_VERSION}-latest-${OS}-${MACHINE}.sh"
+export INSTALL_PATH="${PREFIX}/miniconda${PYTHON_VERSION}"
+
+echo "----------------------------------------------"
+echo "Python Version: $PYTHON_VERSION"
+echo "Priority Channel: ${CHANNEL:-None}"
+echo "Additional Packages: ${PACKAGES:-None}"
+echo "Miniconda installer: ${INSTALLER:-None}"
+echo "Installing in path: $INSTALL_PATH"
+echo "----------------------------------------------"
+
+read -p "Continue y|[n]: " opt
+[[ "$opt" != 'y' ]] && exit 0
+
+# Download installer if required
+if [ ! -f "$INSTALLER" ]; then
+  echo -e "$(date +%T) Downloading Miniconda installer ${CONDA_REPO}/${INSTALLER}\n"
+  cd $TMPDIR && curl -C - -O ${CONDA_REPO}/${INSTALLER}
+fi
+
+# Install conda and Python
+echo -e "$(date +%T) Installing Python${PYTHON_VERSION} using $INSTALLER\n"
+bash $INSTALLER -b "$UPDATE_FLAG" -p $INSTALL_PATH
+
+# Add priority channel
+if [[ "$CHANNEL" ]]; then
+  echo -e "$(date +%T) Adding $CHANNEL channel with highest priority\n"
+  ${INSTALL_PATH}/bin/conda config --add channels $CHANNEL
+fi
+
+if [[ "$PACKAGES" ]]; then
+  echo -e "$(date +%T) Installing additional packages: ${PACKAGES[@]}\n"
+  ${INSTALL_PATH}/bin/conda install -y --update-deps $PACKAGES
+fi
+
+# Housekeep clean up
+echo -e "$(date +%T) Cleaning-up Miniconda packages and caches\n"
+${INSTALL_PATH}/bin/conda clean -ay
+

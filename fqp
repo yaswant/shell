@@ -1,0 +1,13 @@
+#!/bin/bash
+# fqp filename(s)
+# returns fully qualified path of files/directories
+#
+# 2015-12-11 yaswant.pradhan
+# -----------------------------------------------------------------------------
+
+[[ $# -eq 0 ]] && echo "usage: ${0##/*} filename(s)" && exit 1
+if [[ "$OSTYPE" == 'darwin'* ]]; then
+  for i in $@; do stat -f $i; done
+else
+  for i in $@; do readlink -ev $i; done
+fi

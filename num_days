@@ -1,18 +1,18 @@
 #!/bin/bash
 # num_days DATE1 [DATE2]
+#   DATE in %Y-%m-%d format
+# Warning: POSIX date wont complain invalid date inputs, but auto-correct it.
+# For example and input of 2018-02-31 will be interpreted as 2018-03-03.
 # yaswant.pradhan
+# -----------------------------------------------------------------------------
+usage(){ echo "syntax: ${0##*/} DATE1 [DATE2]"; }
+[[ $# -eq 0 ]] && usage && exit 1
 
-case "$#" in
-    1 ) DATE1=$(date -d $1 +%F)
-        DATE2=$(date +%F)
-        ;;
-    2 ) DATE1=$(date -d $1 +%F)
-        DATE2=$(date -d $2 +%F)
-        ;;
-    * ) echo -e "syntax: $(basename $0) DATE1 [DATE2]"
-        exit 2
-        ;;
-esac
-
-echo $(( (`date -d $DATE2 +%s` - `date -d $DATE1 +%s`) /(24*3600) ))
-
+if [[ "$OSTYPE" == 'darwin'* ]]; then
+    DATE2=${2:-$(date +%F)}
+    echo $(( (`date -jf %F $DATE2 +%s` - `date -jf %F $1 +%s`) / (24*3600) ))
+else
+    DATE1=$(date -d $1 +%F)
+    DATE2=$(date -d $2 +%F)
+    echo $(( (`date -d $DATE2 +%s` - `date -d $DATE1 +%s`) /(24*3600) ))
+fi

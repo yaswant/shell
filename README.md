@@ -14,7 +14,7 @@ GNU/Linux operating system with bash.
 * BASH_VERSION 4.1.2+
 * GNU coreutils 8.28+
 
-Very few scripts have been adjusted to work on mac OS (POSIX.2).
+Very few scripts have been adjusted to work on mac OS (POSIX.2), some still in progress.
 
 ```
 # Get your OS  from a terminal

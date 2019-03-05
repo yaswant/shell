@@ -30,6 +30,12 @@ cd ysh
 sh ./install.sh [PATH]  # default PATH=$HOME/ysh
 ```
 
+### Uninstalling
+The following commands will remove the ysh install path from the system.  At the moment the PATH setting in user profile has to be removed manually.
+
+```sh
+sh uninstall.sh [PATH]  # default PATH=$HOME/ysh
+```
 <!-- ## Running the tests
 
 

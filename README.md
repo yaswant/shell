@@ -21,10 +21,16 @@ echo "$OSTYPE"
 linux-gnu
 ```
 
-<!-- ### Installing
+### Installing
+The following commands from a terminal should install the scripts in `$HOME/ysh` directory (specify path to install in a different place). The install script will also append instal path to shell `PATH`.
 
+```sh
+git clone https://github.com/yaswant/ysh.git
+cd ysh
+sh install.sh [PATH]  # default PATH=$HOME/ysh
+```
 
-## Running the tests
+<!-- ## Running the tests
 
 
 ### Break down into end to end tests

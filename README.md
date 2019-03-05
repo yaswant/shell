@@ -1,5 +1,4 @@
 # ysh
-
 A collection of useful general purpose shell scripts
 
 ## Getting Started
@@ -16,11 +15,10 @@ GNU/Linux operating system with bash.
 
 Very few scripts have been adjusted to work on mac OS (POSIX.2), some still in progress.
 
-```
+```sh
 # Get your OS  from a terminal
-
-$ echo $OSTYPE
-GNU/Linux
+echo "$OSTYPE"
+linux-gnu
 ```
 
 <!-- ### Installing

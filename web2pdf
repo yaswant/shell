@@ -25,7 +25,7 @@ usage() { echo "usage: $(basename $0) URL [pdffile] [encoding]" ; }
 [[ $# -lt 1 ]] && usage && exit 1
 
 webf=$(basename $1)
-TMP_HTML=${TMPDIR}/${webf}
+TMP_HTML="$webf"
 OUT_PDF="${webf%.*}.pdf"
 
 [[ $# -ge 2 ]] && OUT_PDF=$2

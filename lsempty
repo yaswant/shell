@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 #
 # lsempty
 #       List empty files/directories in a specific path
@@ -10,14 +10,20 @@
 #       depth: search levels under path (def: 100)
 #
 # yaswant.pradhan
+# 2019-03-15 osx and DEBUG mode support (yp)
 # ----------------------------------------------------------------------------
-set -e
+[ -n "$DEBUG" ] && set -x
+
 SP="${1:-$PWD}"
 MD="${2:-100}"
 
 [ -z $SP ] && SP=$PWD
-[ -d $SP ] || { echo "cannot access $SP: No such directory"; exit 1; }
+cd $SP 
 
 echo -e "List of empty files/directories in $SP: \n"
-find $SP -maxdepth $MD -empty -printf "%u %Y %p  ..%sb\n" | sort | nl -p
+case "$OSTYPE" in
+  'darwin'*) find $SP -maxdepth $MD -empty -print | sort | nl -p;;
+  'linux-gnu') find $SP -maxdepth $MD -empty -printf "%u %Y %p  ..%sb\n" | sort | nl -p;;
+  *) echo 'OS not supported';;
+esac
 

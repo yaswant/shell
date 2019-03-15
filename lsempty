@@ -18,12 +18,12 @@ SP="${1:-$PWD}"
 MD="${2:-100}"
 
 [ -z $SP ] && SP=$PWD
-cd $SP 
+cd $SP
 
 echo -e "List of empty files/directories in $SP: \n"
 case "$OSTYPE" in
-  'darwin'*) find $SP -maxdepth $MD -empty -print | sort | nl -p;;
-  'linux-gnu') find $SP -maxdepth $MD -empty -printf "%u %Y %p  ..%sb\n" | sort | nl -p;;
+  darwin*) find $SP -maxdepth $MD -empty -print | sort | nl -p;;
+  linux*) find $SP -maxdepth $MD -empty -printf "%u %Y %p  ..%sb\n" | sort | nl -p;;
   *) echo 'OS not supported';;
 esac
 

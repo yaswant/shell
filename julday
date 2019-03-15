@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 # NAME
 #       julday - Get julian day from a given calendar date [time]
 #
@@ -54,7 +54,7 @@
 #
 # 2019-01-29 yaswant.pradhan (implementation using UNIX datetime)
 # -----------------------------------------------------------------------------
-set -e
+[ -n "$DEBUG" ] && set -x
 
 if [[ "$OSTYPE" == 'linux-gnu' ]]; then
   TEMP=$(getopt -o f:ht:vV --long format:,help,time:,version,VERBOSE \

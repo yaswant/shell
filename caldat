@@ -1,5 +1,5 @@
-#!/bin/bash
-set -e
+#!/bin/bash -e
+[ -n "$DEBUG" ] && set -x
 
 # ----------------------------------------------------------------------------
 if [[ "$OSTYPE" == 'linux-gnu' ]]; then
@@ -70,7 +70,7 @@ while true; do
   esac
 done
 
-_julday="${1:-$(julday $(date -u +'%D %T') %f)}"
+_julday="${1:-$(julday $(date -u +'%F %T') %f)}"
 fmt=${fmt:-'%FT%TZ'}
 JD_UNIX=2440587.5  # Unix epoch in days.
 
@@ -82,4 +82,11 @@ if (( $verb )); then
   echo
 fi
 
-date -u --date @$seconds +"$fmt"
+case "$OSTYPE" in
+  darwin*) date -u -jf '%s' "$seconds" +"$fmt" 2>/dev/null;
+    ;;
+  linux*) date -u --date @$seconds +"$fmt";
+    ;;
+  *) echo "$OSTYPE not supported";
+    ;;
+esac

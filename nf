@@ -8,6 +8,7 @@
 # nf "/path/to/files/*pattern*"
 #
 # Yaswant Pradhan (2013-02-05)
+# 2019-03-18 remove ls dependency (yp) 
 # #
 
 FILE_PATH="${1:-$(pwd)/*}"

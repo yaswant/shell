@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Usage: nf [PATH]
 #
@@ -11,4 +11,4 @@
 # #
 
 FILE_PATH="${1:-$(pwd)/*}"
-printf "%s\n" ${FILE_PATH[*]} | wc -l
+printf "%s\n" ${FILE_PATH[@]} | wc -l

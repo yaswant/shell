@@ -70,7 +70,7 @@ while true; do
   esac
 done
 
-[[ "OS" == 'Darwin' ]] && OS=MacOSX
+[[ "$OS" == 'Darwin' ]] && OS=MacOSX
 
 [ -e "$INSTALLER" ] \
   || INSTALLER="Miniconda${PYTHON_VERSION}-latest-${OS}-${MACHINE}.sh"
@@ -90,7 +90,7 @@ read -p "Continue y|[n]: " opt
 # Download installer if required
 if [ ! -f "$INSTALLER" ]; then
   echo -e "$(date +%T) Downloading Miniconda installer ${CONDA_REPO}/${INSTALLER}\n"
-  cd $TMPDIR && curl -C - -O ${CONDA_REPO}/${INSTALLER}
+  cd $TMPDIR && curl -C - -O -L ${CONDA_REPO}/${INSTALLER}
 fi
 
 # Install conda and Python

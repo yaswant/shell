@@ -1,0 +1,57 @@
+#!/bin/bash
+# Name: decrypt
+# Usage: decrypt gpgFile
+#   gpgFile is a gpg encripted File/Archive (encripted using encrypt command)
+#   gpgFile can be a simple encripted file or an tar/tgz archive
+# 
+# yaswant.pradhan
+
+[ -z $1 ] && echo -e "Usage:\n  `basename $0` gpgFile\n" && exit 1
+
+Extn0=${1##*.}
+Base0=${1%.*}
+
+[[ "$Extn0" != 'gpg' ]] && echo -e "$1 is not a gpg file\n" && exit 1
+if [ -e "$Base0" ]; then
+    echo -e "Warning: A file/dir with name '$Base0' already exists in path"
+    read -p "Do you want to delete existing file before proceed? y|N: " x
+    [[ $x = 'y' ]] && rm $Base0 || exit 1
+fi
+
+
+# Write gpg decrypt file:
+gpg2 $1
+
+
+# Check if tar extraction required:
+Extn1=${Base0##*.}
+Base1=${Base0%.*}
+
+if [ -e "$Base1" ]; then
+    echo -e "Warning: A file/dir with name '$Base1' already exists in path"
+    read -p "Do you want to continue? y|N: " x
+    if [[ $x != 'y' ]]; then
+        rm $Base0
+        echo -e "Aborted."
+        exit 0
+    fi    
+fi
+
+case $Extn1 in
+    tgz)
+        echo -e "\nExtracting files from compressed archive to '$Base1'.. \c"
+        tar -zxf $Base0
+        rm $Base0
+        echo -e "done."
+        ;;
+    tar)
+        echo -e "\nExtracting files from archive to '$Base1'.. \c"
+        tar -xf $Base0
+        rm $Base0
+        echo -e "done."
+        ;;
+    *)
+        echo -e "Restored file '$Base1'"
+        ;;
+esac
+

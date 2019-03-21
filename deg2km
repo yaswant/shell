@@ -1,0 +1,19 @@
+#!/bin/bash
+# deg2km degrees [Latitude]
+#
+# Convert Value from degrees to Kiometers in Zonal and Meridional axes
+# yaswant.pradhan
+
+deg=${1:-0}     # Degrees
+Lat=${2:-0}     # At specific Latitude
+Re=6378.137     # Radius of Earth
+dtr=0.0174532925199
+rtd=57.2957795131
+
+
+#echo $deg $Re $rtd $Lat $dtr
+
+[[ $# -ne 0 ]] && echo $deg $Re $rtd $Lat $dtr |\
+awk '{printf "%0.4f %0.4f\n", $1 * $2/$3*cos($4*$5), $1 * $2/$3}' || \
+echo "usage: `basename $0` degrees [Latitude]"
+

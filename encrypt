@@ -1,0 +1,25 @@
+#!/bin/sh
+# Name: encrypt
+# Usage: encrypt Path
+#   Path can be a file or a directory
+#   If Path is a file, then output will be Path.gpg
+#   If Path is a dir, then output will be Path.tgz.gpg
+#
+# See also: decrypt
+#
+# yaswant.pradhan
+
+[ -z $1 ] && echo -e "Usage:\n  `basename $0` Path\n" && exit 1
+
+SRC=`basename $1`
+TMP=${SRC}.tgz
+
+[ -f ${SRC} ] && gpg -c ${SRC} 2>/dev/null && exit $?
+
+if [ -d $SRC ]; then
+    tar -czf ${SRC}.tgz ${SRC};
+    gpg -c ${TMP} 2>/dev/null;
+    $(which rm) ${TMP};
+    exit $?;
+fi
+

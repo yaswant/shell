@@ -1,0 +1,117 @@
+#!/bin/bash
+#-----------------------------------------------------
+# NAME
+#       doy - print Serial Day of Year
+#
+# SYNOPSIS
+#       doy [OPTION]
+#	doy [DD MM YYYY | -h]
+#
+# VERSION
+#	0.2
+#   1.0     Parse more common date formats (yp)
+#
+# AUTHOR
+#	fra6@eld047 (Yaswant Pradhan)
+#-----------------------------------------------------
+
+#---------------------------------------------------------------
+version=1.0
+
+usage()
+{
+cat <<EOF
+
+NAME
+        ${0##*/} - show serial day of year
+
+SYNOPSIS
+        ${0##*/} date
+        Valid date formats:
+            CCYY-MM-DD
+            CCYY/MM/DD
+            CCYYMMDD
+            CCYY MM DD
+            DD-MM-CCYY (- can be any character in this form)
+            DDMMCCYY
+            DD MM YYYY
+
+
+DESCRIPTION
+        Display the Serial Day of Year for a given day month year in DD MM YYYY
+        FORMAT, or for the system date.
+
+        -?[help]    print this message and exit
+        -v          prints version information and exit
+
+Examples:
+   doy              Return Serial Day of Year for the current date
+   doy 29 06 2003   Returns DOY for 29th June 2003, which is 180
+
+EOF
+}
+
+while getopts "h:v" OPTION
+do
+   case $OPTION in
+        h)
+	  usage
+	  exit 1
+	  ;;
+	v)
+	    echo -e "\n$0 version $version\n"
+	    exit
+	    ;;
+	?)
+	    usage
+	    exit
+	    ;;
+    esac
+done
+#----------------------------------------------------------------
+
+case $# in
+    0)  # Current system doy
+        date +'%j'; exit $?;;
+    1)  #echo "1 arg"
+        case ${#1} in
+            8)  #echo "len=8"
+                ret=$(date -d $1 +'%j' 2>/dev/null)
+                case $? in
+                    0)  echo $ret; exit 0;;
+                    ?)  # Get Day Month Year in reverse order
+                        y=$(echo $1 |cut -c5-8)
+                        m=$(echo $1 |cut -c3-4)
+                        d=$(echo $1 |cut -c1-2)
+                        date -d $y$m$d +'%j'
+                        exit $? ;;
+                esac
+                ;;
+
+            10) #echo "len=10"
+                ret=$(date -d $1 +'%j' 2>/dev/null)
+                case $? in
+                    0)  echo $ret; exit 0;;
+                    ?)
+                        y=$(echo $1 |cut -c7-10)
+                        m=$(echo $1 |cut -c4-5)
+                        d=$(echo $1 |cut -c1-2)
+                        ret=$(date -d $y$m$d +'%j' 2>/dev/null)
+                        [[ $? -eq 0 ]] && echo $ret || \
+                        (echo "invalid date" && exit 1)
+                        exit $?;;
+                esac
+                ;;
+            *)  echo "invalid len";;
+        esac
+        ;;
+    3)  #echo "3 args"
+        case ${#1} in
+            2) date -d $3$2$1 +'%j'; exit $?;;
+            4) date -d $1$2$3 +'%j'; exit $?;;
+            ?) echo "invalid date"; exit 1;;
+        esac
+        ;;
+    *)  usage; exit ;;
+esac
+

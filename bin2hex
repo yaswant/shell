@@ -1,0 +1,11 @@
+#!/bin/bash -e
+# bin2hex binary_value
+#
+# Convert Value from binary to hexa-decimal
+# yaswant.pradhan
+
+[[ $# -eq 0 ]] && echo "usage: ${0##*/} binary_value" && exit 1
+for i in $@; do
+    printf '%x ' "$((2#$i))"
+done
+echo

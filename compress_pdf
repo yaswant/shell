@@ -1,0 +1,79 @@
+#!/bin/bash -e
+# Syntax:
+#       compress_pdf [options] inFile [outFile]
+#
+#  Options:
+#       See help
+#       compress_pdf --help
+#
+# Requires:
+#     gs
+#
+# History:
+# Apr-2014  Yaswant Pradhan v1.0
+
+
+
+usage(){
+cat << EOF
+NAME
+    ${0##*/}, a gs wrapper to compress PDF files by controlling image
+    resolutions of the original PDF.
+
+SYNOPSIS
+    ${0##*/} [OPTION] inFile [outFile]
+
+DESCRIPTION
+  Options:
+    -h -? --help    show this message
+    -d --dpi        image resolution required in the output pdf
+    -s --size       desired output paper size (def: a4)
+                    Paper sizes known to gs are available at
+                    http://ghostscript.com/doc/current/Use.htm#Known_paper_sizes
+    inFile          input pdf file
+    outFile     optional  output filename base (def: inFile-{DPI}.pdf)
+
+AUTHOR
+       Written by Yaswant Pradhan.
+EOF
+}
+
+# Check gs is avialable  on the system
+which gs &> /dev/null
+[[ $? -ne 0 ]] && echo -e "** ERROR: gs does not exist in path.\n" && exit 1
+
+# -----------------------------------------------------------------------------
+# Default settings:
+# -----------------------------------------------------------------------------
+DPI=300     # Default Image resolution
+PAPER=a4    # Default Paper size
+
+# -----------------------------------------------------------------------------
+# Parse arguments:
+# -----------------------------------------------------------------------------
+while [[ $1 == -* ]]; do
+    case $1 in
+        -h|--help|-\?) usage; exit 0;;
+        -d|--dpi) DPI=$2; shift 2;;
+        -s|--size) PAPER=$2; shift 2;;
+        --) shift; break;;
+        -*) echo "invalid option: $1" 1>&2; usage; exit 1;;
+    esac
+done
+
+if [[ $# -lt 1 ]]; then usage; exit 0; fi
+inFile=$1   # Input File
+[ ! -f $inFile ] && echo -e "** ERROR: '$inFile' does not exist.\n" && exit 1
+
+outFile="${2:-$(basename $inFile .pdf)-${DPI}dpi.pdf}"
+echo -e "Compressing to file: $outFile ... \c"
+
+# -----------------------------------------------------------------------------
+# Shrink PDF
+# -----------------------------------------------------------------------------
+gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dDownsampleColorImages=true \
+    -dColorImageResolution=$DPI -dNOPAUSE -dQUIET -dBATCH -sPAPERSIZE=$PAPER \
+    -sOutputFile=$outFile $inFile
+
+st=$?
+[[ "$st" -eq 0 ]] && echo -e "done." || exit "$st"

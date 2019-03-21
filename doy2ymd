@@ -1,0 +1,54 @@
+#!/bin/bash
+# Name
+#   doy2ymd
+#
+# Purpose
+#   Convert Year and serial day of year to calendar year-month-day
+#
+# Syntax
+#   doy2ymd yyyyddd
+#   doy2ymd yyyy ddd
+#
+# Example
+#   doy2ymd 2012171
+#   doy2ymd 2012 171
+#   Both the commands above should return same result: 20120619
+#
+# yaswant.pradhan
+
+
+usage(){
+cat<<EOF
+Usage:  doy2ymd YYYYddd [or]
+        doy2ymd yyyy ddd [or]
+        doy2ymd yyyy ddd fmt-specifier
+
+This script works on GNU-based system.
+Serial day 0 will return last day of the previous year.
+EOF
+}
+
+[[ $# -eq 0 || $# -gt 3 ]] && usage && exit
+
+
+# Parse One paramater argument:
+if [[ $# -eq 1 ]]; then
+    [[ "${#1}" -ne 7 ]] && usage && exit 1
+    yyyy=${1%???}
+    ddd=${1#$yyyy}
+fi
+
+
+# Parse Two paramater arguments:
+if [[ $# -eq 2 || $# -eq 3 ]]; then
+    [[ "${#1}" -ne 4 || "${#2}" -ne 3 ]] && usage && exit 1
+    yyyy=${1}
+    ddd=${2}
+fi
+
+fmt=${3-%Y%m%d}
+
+# Return calendar date:
+# date -d "$yyyy-01-01 +$ddd days -1 day" +"%Y%m%d"
+date -d "$yyyy-01-01 +$ddd days -1 day" +$fmt
+

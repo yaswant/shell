@@ -1,0 +1,27 @@
+#!/bin/bash -e
+# capture: captures a selected region using imagemagick import
+# usage: capture (then grab slice using mouse)
+#
+# yaswant.pradhan
+# -----------------------------------------------------------------------------
+
+# Capture image to ~/ScreenShots:
+OUT=${1:-"$HOME/ScreenShots/snap_$(date +'%y%m%d.%H%M%S').gif"}
+
+# Create output directory if required:
+mkdir -p $(dirname $OUT)
+
+
+if [ -f "$OUT" ]; then
+    read -p "Warning! $OUT exists. Overwrite? (y/n): " opt1
+    [[ $opt1 != 'y' ]] && exit 0
+fi
+
+
+# Capture slice using ImageMagick import:
+command -v import 1>/dev/null \
+  || { printf "\import (ImageMagick) not found\n" && exit; }
+
+import +repage $OUT    # capture selected region
+display $OUT           # show captured image
+printf "Saved => $OUT\n"

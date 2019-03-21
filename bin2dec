@@ -1,0 +1,11 @@
+#!/bin/bash
+# bin2dec binary_value
+#
+# Convert Value from binary to decimal
+# yaswant.pradhan
+
+[[ $# -eq 0 ]] && echo "usage: ${0##*/} binary_value" && exit 1
+for i in $@; do
+    printf '%d ' "$((2#$i))"
+done
+echo

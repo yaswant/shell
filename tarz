@@ -24,7 +24,7 @@ CHECKPOINT=$(echo "${BLOCKS}/${NDASH}" | bc)
 
 printf 'Num Blocks: %s\n' "$BLOCKS"
 printf 'Block Size: %s bytes\n' "$BLOCKSIZE"
-printf 'Blocks per Checkpoint: %f\n' $(echo "$BLOCKS/$CHECKPOINT" | bc -l)
+printf 'Blocks per Checkpoint: %f\n' "$(echo ${BLOCKS}/${CHECKPOINT} | bc -l)"
 
 printf 'Estimated: ['
 (( "$CHECKPOINT" != 0 )) && printf '=%.0s' "$(seq 1 $NDASH)"

@@ -20,14 +20,14 @@ NDASH=20        # number of progress indicators
 # tar cf $arch_name -I /usr/bin/pigz --checkpoint=.1000 --totals $1
 
 BLOCKS=$(du -sB $BLOCKSIZE --apparent-size "$dir_name" | cut -f 1)
-CHECKPOINT=$(echo ${BLOCKS}/${NDASH} | bc)
+CHECKPOINT=$(echo "${BLOCKS}/${NDASH}" | bc)
 
-printf 'Num Blocks: %s\n' $BLOCKS
-printf 'Block Size: %s bytes\n' $BLOCKSIZE
-printf 'Blocks per Checkpoint: %f\n' $(echo "$BLOCKS/$CHECKPOINT" | bc -l)
+printf 'Num Blocks: %s\n' "$BLOCKS"
+printf 'Block Size: %s bytes\n' "$BLOCKSIZE"
+printf 'Blocks per Checkpoint: %f\n' "$(echo ${BLOCKS}/${CHECKPOINT} | bc -l)"
 
 printf 'Estimated: ['
-(( $CHECKPOINT != 0 )) && printf '=%.0s' $(seq 1 $NDASH)
+(( "$CHECKPOINT" != 0 )) && printf '=%.0s' "$(seq 1 $NDASH)"
 printf ']'
 printf '  %s blocks' "$BLOCKS"
 
@@ -36,5 +36,5 @@ printf '\nProgress:  ['
 tar -cP -s --record-size=$BLOCKSIZE --checkpoint="$CHECKPOINT" \
     --checkpoint-action="ttyout=>" -f - "$1" | /usr/bin/pigz > "$arch_name";
 printf ']'
-printf '  %s blocks' $(du -sB $BLOCKSIZE --apparent-size "$arch_name" | cut -f 1)
+printf '  %s blocks' "$(du -sB $BLOCKSIZE --apparent-size $arch_name | cut -f 1)"
 echo -e "\n\nINFO: File archived as: $arch_name"

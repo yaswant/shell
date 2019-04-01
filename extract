@@ -1,33 +1,80 @@
 #!/bin/bash
 #
 # Extract from an archive (optionally compressed) with full path
-# yaswant.pradhan
+#
+# May 2014, yaswant.pradhan
+# -----------------------------------------------------------------------------
 
-which unrar &>/dev/null;
-[[ $? -ne 0 ]] && export PATH=$PATH:'/home/h05/fra6/pkg/rar'
+usage() {
+cat <<EOF
+usage:
+    ${0##*/} filename
 
-which 7z &>/dev/null;
-[[ $? -ne 0 ]] && export PATH=$PATH:'/home/h05/fra6/pkg/p7zip_9.04/bin'
+Supported file types auto-detected by file extension:
 
+.bz2, .tar.bz2, .tbz2, .tbz:
+        bzip2 compressed file or archive -> b[un]zip2 or tar.
+
+.gz, .tar.gz, .tgz:
+        GNU zip (gzip) compressed file or archive -> parallel gzip (pigz)
+        or tar.
+
+.pax:   portable archive exchange (POSIX) archive -> tar or pax.
+.rar:   Roshal Archive (aproprietary archive file format) using unrar.
+.tar:   tape archive (tar) -> tar.
+
+.xz, .lzma:
+        general-purpose data compression with a high compression ratio.
+
+.zip:   ZIP archive (MS-DOS) -> [un]xz.
+.Z:     adaptive Lempel-Ziv coding compress file -> [un]compress.
+.7z:    general-purpose data compression supports many compression methods
+        (LZMA[2], PPDM, BCJ[2], BZip2, Deflate) used by other compression
+        tools to compress data.
+EOF
+}
+
+[ $# -lt 1 ] && usage && exit
+
+command -v unrar &>/dev/null || export PATH=$PATH:~fra6/pkg/rar
 
 # Extract file/archive:
-if [ -f $1 ] ; then
-    case $1 in
-        *.tar.bz2)      tar xvjf $1 ;;
-        *.tar.gz)       tar xvzf $1 ;;
-        *.bz2)          bunzip2 $1  ;;
-        *.rar)          unrar x $1  ;;
-        *.gz)           pigz -d $1  ;;    # gunzip $1   ;;
-        *.tar)          tar xvf $1  ;;
-        *.tbz2|*.tbz)   tar xvjf $1 ;;
-        *.tgz)          tar xvzf $1 ;;
-        *.zip)          unzip $1    ;;
-        *.Z)            uncompress $1 ;;
-        *.7z)           7z x $1     ;;
-        *)              echo "extract: '$1' cannot be restored" ;;
-    esac
+if [ -f "$1" ]; then
+  case $1 in
+    *.bz2)
+        bunzip2 "$1"
+        ;;
+    *.gz)
+        pigz -dk "$1"
+        ;;
+    *.tar.bz2 | *.tbz2 | *.tbz)
+        tar xvjf "$1"
+        ;;
+    *.tar | *.pax | *.tar.xz)
+        tar xvf "$1"
+        ;;
+    *.tar.gz | *.tgz)
+        tar xf "$1" -I /usr/bin/pigz --totals
+        ;;
+    *.xz | *.lzma)
+        xz -dk "$1"
+        ;;
+    *.zip)
+        unzip "$1"
+        ;;
+    *.Z)
+        uncompress "$1"
+        ;;
+    *.rar)
+        unrar x "$1"
+        ;;
+    *.7z)
+        ~fra6/pkg/7zip/bin/7z x "$1"
+        ;;
+    *)
+        printf "%s: '%s' cant be restored.\n" "${0##*/}" "$1" && exit 2
+        ;;
+  esac
 else
-    echo "extract: '$1' is not a valid file"
+  printf "%s: Error: %s is not a valid file.\n" "${0##*/}" "$1" && exit 1
 fi
-
-

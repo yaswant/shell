@@ -74,8 +74,8 @@ _julday="${1:-$(julday $(date -u +'%F %T') %f)}"
 fmt=${fmt:-'%FT%TZ'}
 JD_UNIX=2440587.5  # Unix epoch in days.
 
-seconds=$(echo $_julday $JD_UNIX | awk '{printf "%f", ($1 - $2) * 86400.0}')
-if (( $verb )); then
+seconds=$(echo "$_julday" $JD_UNIX | awk '{printf "%f", ($1 - $2) * 86400.0}')
+if (( verb )); then
   echo "Unix Julian Epoch = $JD_UNIX"
   echo "Input Julian day = $_julday"
   echo "Equivalent Unix seconds = $seconds"
@@ -85,7 +85,7 @@ fi
 case "$OSTYPE" in
   darwin*) date -u -jf '%s' "$seconds" +"$fmt" 2>/dev/null;
     ;;
-  linux*) date -u --date @$seconds +"$fmt";
+  linux*) date -u --date @"$seconds" +"$fmt";
     ;;
   *) echo "$OSTYPE not supported";
     ;;

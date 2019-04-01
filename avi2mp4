@@ -14,11 +14,11 @@ app=$(command -v ffmpeg || command -v avconv)
 
 # Parse inputs:
 [ -f "$1" ] \
-  || { echo "usage: $(basename $0) infile.avi [outfile.mp4]"; exit 2; }
+  || { echo "usage: ${0##*/} infile.avi [outfile.mp4]"; exit 2; }
 
 # Define Output filename:
 outfile=${2:-${1%%.avi}.mp4}
 
 # Convert file:
-printf "converting $1 -> $outfile\n"
+printf "converting %s -> %s\n" "$1" "$outfile"
 $app -i "$1" -c:v libx264 -c:a copy -preset ultrafast "$outfile"

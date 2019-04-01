@@ -118,7 +118,7 @@ COMPRESS=   # Set output image depth to 8bit
 CMTMP=$(mktemp -d ${TMPDIR:-$SCRATCH/tmp}/convert-multipage-${USER}.XXXXXX)
 #CMTMP="${TMPDIR:-$SCRATCH/tmp}/convert-multipage-${USER}"
 #mkdir -p $CMTMP                            # create CMTMP if necessary
-LOGOFILE='~/logo.gif'                       # Logofile to add on the figure
+LOGOFILE="${HOME}/logo.gif"                 # Logofile to add on the figure
 TMPS1="${CMTMP}/temp1.ps"                   # temporary psfile 1
 TMPS2="${CMTMP}/temp2.ps"                   # temporary psfile 2
 TMLOGO="${CMTMP}/logo.gif"                  # temporary logofile
@@ -194,11 +194,11 @@ done
 if [[ $# -lt 1 ]]; then usage; exit 0; fi
 
 FILE=$1     # First argument following options is input PS filename
-[ ! -f $FILE ] && echo -e "** ERROR: '$FILE' does not exist.\n" && exit 1
+[ ! -f "$FILE" ] && echo -e "** ERROR: '$FILE' does not exist.\n" && exit 1
 
 
 ## Get file extension, only if something exists after last '.' ---------------
-EXT=$(echo $FILE |awk -F . '{if (NF>1) {print $NF}}')
+EXT=$(echo "$FILE" | awk -F . '{if (NF>1) {print $NF}}')
 if [[ $EXT = '' ]]; then
   echo -e "** ERROR: Cannot determine input file format\n"
   exit 1
@@ -206,7 +206,7 @@ elif [[ $EXT = 'gz' ]]; then
   gzFlag=T
   echo -e "Decompressing $FILE ..\c"
   DFILE=${FILE%.*}
-  gunzip -c $FILE > $DFILE
+  gunzip -c "$FILE" > "$DFILE"
   echo -e "done"
   FILE=$DFILE
   EXT=${FILE##*.}     # last part of the file name
@@ -215,48 +215,48 @@ fi
 
 ## Optimise ps file -----------------------------------------------------------
 if [[ $optimizePS = T ]]; then
-  ps2ps $FILE "${CMTMP}/optimized.ps"
-  mv "${CMTMP}/optimized.ps" $FILE
+  ps2ps "$FILE" "${CMTMP}/optimized.ps"
+  mv "${CMTMP}/optimized.ps" "$FILE"
 fi
 
 
-## Second (optional) argument following options is output filebasename -------
+## Second (optional) argument following options is output file basename -------
 if [[ $# -eq 2 ]]; then
-  OEXT=$(echo $2 |awk -F . '{if (NF>1) {print $NF}}')
+  OEXT=$(echo "$2" |awk -F . '{if (NF>1) {print $NF}}')
   if [[ $OEXT = '' ]]; then
     OUTFILE=$2
   else
     OUTFILE=${2%.*}
-    [[ $fFlag != T ]] && OFMT=${OEXT}
+    [[ $fFlag != T ]] && OFMT="$OEXT"
   fi
 else
-  OUTFILE=$(basename $FILE .$EXT)
+  OUTFILE=$(basename "$FILE" ."$EXT")
 fi
 
 if [[ $OFMT = pdf ]]; then
-  [[ $qstate -ne 1 ]] && echo "INFO: ps2pdf compotibility 1.4"
+  [[ $qstate -ne 1 ]] && echo "INFO: ps2pdf compatibility 1.4"
   [[ $addLogo = T ]] && echo " --logoadd - Invalid option for pdf output"
   [[ $trimImage = T ]] && echo " --trim - Invalid option for pdf output"
 fi
 
 
 ## Check if file type is [E]PS, from file extension --------------------------
-ext=$(echo $EXT |tr '[:upper:]' '[:lower:]')
-EXT=$(echo $EXT |tr '[:lower:]' '[:upper:]')
+ext=$(echo "$EXT" |tr '[:upper:]' '[:lower:]')
+EXT=$(echo "$EXT" |tr '[:lower:]' '[:upper:]')
 
 #if [[ ${EXT^^} != PS ]] && [[ ${EXT,,} != eps ]]; then # in bash-4
 if [[ ${EXT} != PS ]] && [[ ${ext} != eps ]]; then  # in bash-3
   [[ $rFlag != T ]] && RF=100%
 
   if [[ $FILE == ${OUTFILE}.${OFMT} ]]; then
-    echo -e "INFO: Iput File = Output File. No conversion applied\n"
+    echo -e "INFO: Input File = Output File. No conversion applied\n"
     usage; exit 0;
   fi
 
   [[ $qstate -ne 1 ]] && echo "INFO: Converting from a non-PS file"
   convert +antialias -flatten \
-    -density $DPI ${OPT} ${FILE} \
-    -resize ${RF} ${OUTFILE}.${OFMT}
+    -density "$DPI" "$OPT" "$FILE" \
+    -resize "$RF" "${OUTFILE}.${OFMT}"
   exit 0
 fi
 
@@ -266,9 +266,9 @@ fi
 # output file(s) are nicely formatted (e.g.01,02..10 or
 # 001,002,..099,..100,..999)
 # ----------------------------------------------------------------------------
-NPAGES=${NPAGES:-$(grep -c %%Page: $FILE)}
+NPAGES=${NPAGES:-$(grep -c %%Page: "$FILE")}
 form="l($NPAGES) / l(10)"
-pf=$( echo $form | bc -l )
+pf=$( echo "$form" | bc -l )
 case $pf in
   0|.*) Z="%01d" ;; # Output Page numbers format I1
   1*)   Z="%02d" ;; # Output Page numbers format I2
@@ -283,8 +283,8 @@ esac
 #PAGE=${PAGE:-1}  # Initialise page number
 
 if [[ $PAGE == '' ]]; then
-  for (( i=0;  i<$NPAGES;  i++ )); do
-    PageArr[i]=$(( $i + 1 ))
+  for (( i=0;  i<NPAGES;  i++ )); do
+    PageArr[i]=$(( i + 1 ))
   done
   PSOPT1="${PSOPT1} -p1-$NumPages"
 else
@@ -296,20 +296,20 @@ fi
 
 ## Copy or extract selected pages to a temporary PS file ---------------------
 if [[ $extract -eq 1 ]]; then
-  psselect $PSOPT1 -q ${FILE} ${TMPS1}
+  psselect "$PSOPT1" -q "$FILE" "$TMPS1"
 else
-  cp ${FILE} ${TMPS1}
+  cp "$FILE" "$TMPS1"
 fi
 
 
 ## Count total number of pages in temporary PS file --------------------------
-TPAGES=$(grep -c %%Page: $TMPS1)
+TPAGES=$(grep -c %%Page: "$TMPS1")
 
 
 ## Calculate how many pages to convert ---------------------------------------
 addone=0
-[[ $oddflag -eq 1 ]] && addone=$(( $NPAGES%2 ))
-[[ $half -eq 1 ]] && NPAGES=$(( $NPAGES / 2 + $addone))
+[[ $oddflag -eq 1 ]] && addone=$(( NPAGES%2 ))
+[[ $half -eq 1 ]] && NPAGES=$(( NPAGES / 2 + addone))
 [[ $qstate -ne 1 ]] && echo "INFO: $NPAGES pages to convert."
 
 
@@ -321,59 +321,60 @@ addone=0
 PAGE=1
 pnum=
 
-while (( $PAGE <= $NPAGES )); do
+while (( PAGE <= NPAGES )); do
   ## Select ps pages and write to temp file --------------------------------
-  if [[ $NPAGES -gt 1 ]]; then pnum="-$(printf $Z $PAGE)"; fi
-  psselect $PSOPT2 -p$PAGE ${TMPS1} ${TMPS2}
+  if [[ $NPAGES -gt 1 ]]; then pnum="-$(printf '%s %s' $Z $PAGE)"; fi
+  psselect "$PSOPT2" -p$PAGE "$TMPS1" "$TMPS2"
 
   if [[ $OFMT = pdf ]]; then
     # Use gs to convert:
     gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 \
-      -dPDFSETTINGS=/prepress -dNOPAUSE -dQUIET -dBATCH \
-      -dAutoRotatePages=/All -sPAPERSIZE=a4 -dFIXEDMEDIA \
-      -sOutputFile=${OUTFILE}${pnum}.${OFMT} ${TMPS2}
+       -dPDFSETTINGS=/prepress -dNOPAUSE -dQUIET -dBATCH \
+       -dAutoRotatePages=/All -sPAPERSIZE=a4 -dFIXEDMEDIA \
+       -sOutputFile="${OUTFILE}${pnum}.${OFMT}" "$TMPS2"
 
     pdfPages="$pdfPages ${OUTFILE}${pnum}.${OFMT}"
   else
     # Use ImageMagick convert:
     convert +antialias -flatten \
-      -density $DPI ${OPT} ${TMPS2} \
-      -resize ${RF} ${OUTFILE}${pnum}.${OFMT}
+      -density "$DPI" "$OPT" "$TMPS2" \
+      -resize "$RF" "${OUTFILE}${pnum}.${OFMT}"
   fi
 
   ## Trim image edge -------------------------------------------------------
   if [[ $trimImage = T ]] && [[ $OFMT != pdf ]]; then
-    convert ${OUTFILE}${pnum}.${OFMT} -trim +repage ${OUTFILE}${pnum}.${OFMT}
+    convert "${OUTFILE}${pnum}.${OFMT}" \
+            -trim +repage "${OUTFILE}${pnum}.${OFMT}"
   fi
 
   ## Add Met Office logo ---------------------------------------------------
-  if [[ $addLogo = T ]] && [ -f $LOGOFILE ] && [[ $OFMT != pdf ]]; then
+  if [[ $addLogo = T ]] && [ -f "$LOGOFILE" ] && [[ $OFMT != pdf ]]; then
     echo " Adding Custom Logo to ${OUTFILE}${pnum}.${OFMT}"
     logoPos=${logoPos:-northwest}
     logoResize=${logoResize:-100%}
 
-    convert $LOGOFILE -resize $logoResize $TMLOGO
+    convert "$LOGOFILE" -resize "$logoResize" "$TMLOGO"
 
-    composite -dissolve 80% -gravity $logoPos \
-      $TMLOGO ${OUTFILE}${pnum}.${OFMT} ${TMOUT}.${OFMT}
+    composite -dissolve 80% -gravity "$logoPos" \
+      "$TMLOGO" "${OUTFILE}${pnum}.${OFMT}" "${TMOUT}.${OFMT}"
 
-    mv ${TMOUT}.${OFMT} ${OUTFILE}${pnum}.${OFMT}
+    mv "${TMOUT}.${OFMT}" "${OUTFILE}${pnum}.${OFMT}"
   fi
 
   ## Compress image --------------------------------------------------------
   if [[ "$COMPRESS" = 'T' ]] ; then
     echo " Reducing image depth.."
-    convert ${OUTFILE}${pnum}.${OFMT} -depth 8 ${OUTFILE}${pnum}.${OFMT}
+    convert "${OUTFILE}${pnum}.${OFMT}" -depth 8 "${OUTFILE}${pnum}.${OFMT}"
   fi
 
   ## Terminate if Page number exceed Total page in PS file -----------------
   if [[ $PAGE -ge $TPAGES ]] ; then
-    rm -rf $CMTMP
-    [[ $gzFlag = T ]] && rm -f $FILE
+    rm -rf "$CMTMP"
+    [[ $gzFlag = T ]] && rm -f "$FILE"
 
     if [[ $OFMT = pdf ]] && [[ $PDFJOIN = T ]] ; then
       echo -e "INFO: Joining PDF pages.. \c"
-      pdftk $pdfPages cat output ${OUTFILE}.${OFMT}
+      pdftk "$pdfPages" cat output "${OUTFILE}.${OFMT}"
       echo -e "done."
       rm -f ${OUTFILE}-*.${OFMT}
     fi
@@ -390,6 +391,6 @@ done
 # and compressed files still exist
 # ----------------------------------------------------------------------------
 echo "Force Removing $CMTMP"
-rm -rf $CMTMP
-[[ $gzFlag = T ]] && rm -f $FILE
+rm -rf "$CMTMP"
+[[ $gzFlag = T ]] && rm -f "$FILE"
 exit $?

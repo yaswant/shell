@@ -1,4 +1,4 @@
-# ysh
+# `ysh`
 A collection of useful general purpose shell scripts
 
 ## Getting Started

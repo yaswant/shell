@@ -11,11 +11,11 @@ BLDOF=$(tput sgr0 2>/dev/null)
 usage() {
 cat << EOF
 ${BLDON}NAME${BLDOF}
-    $(basename $0), search files (using find method) in a directory with
+    ${0##*/}, search files (using find method) in a directory with
     specific size and delete if required.
 
 ${BLDON}SYNOPSIS${BLDOF}
-    $(basename $0) [OPTION] [PATH]
+    ${0##*/} [OPTION] [PATH]
 
 ${BLDON}DESCRIPTION${BLDOF}
     files is a fork of the GNU find. This is useful to list files of specific
@@ -109,7 +109,7 @@ EOF
 OPT='-type f'               # Find options (search files only)
 DEL=                        # Delete files
 LOPT=                       # Option to control treatment of symbolic links
-LOG='/var/tmp/__files.log'  # logfile $TMPDIR/__files.log
+LOG="$TMPDIR/__files.log"   # logfile $TMPDIR/__files.log
 
 # Parse optional arguments:
 while [[ $1 == -* ]]; do
@@ -137,13 +137,17 @@ SPATH=$1
 
 # Print files with search criteria:
 if [[ $# -le 1 ]]; then
-    echo "find $LOPT "$SPATH" $OPT -exec du --apparent-size -sh {} \;"
-    find $LOPT "$SPATH" $OPT -exec du --apparent-size -sh {} \; |sort -h |tee $LOG
+    # echo "find $LOPT $SPATH $OPT -exec du --apparent -sh {} \;"
+    find $LOPT "$SPATH" $OPT -exec du --apparent-size -sh {} \; \
+    | sort -h \
+    | tee $LOG
 else
-    find $LOPT "$@" $OPT  -exec du --apparent-size -sh {} \; |sort -h |tee $LOG
+    find $LOPT "$@" $OPT -exec du --apparent-size -sh {} \; \
+    | sort -h \
+    | tee $LOG
 fi
 
-nf=$(cat $LOG |wc -l)
+nf=$(wc -l < $LOG)
 [[ $nf -gt 1 ]] && s='s'
 [[ $nf -eq 0 ]] && echo -e "No match.\n" && rm $LOG && exit 0
 
@@ -157,7 +161,8 @@ echo -e "\nTotal\t$nf File$s"
 #       this assumption is broken. In such situation uncomment #m3 and comment
 #       #m1
 if [ -n "$DEL" ]; then
-    echo -e ">> Delete these file$s? (y|n): \c"; read x
+    # echo -e ">> Delete these file$s? (y|n): \c"; read -r x
+    read -rp ">> Delete these file$s? (y|n): " x
     [[ $x = 'y' ]] && rm $(cut -f 2 $LOG) && echo -e "   File$s deleted." #m1
 #   [[ $x = 'y' ]] && rm $(cat $LOG |tr '\t' ',' |cut -d',' -f2)          #m2
 #   [[ $x = 'y' ]] && find $LOPT "$SPATH" $OPT $DEL                      #m3

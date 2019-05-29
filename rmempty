@@ -49,7 +49,7 @@ Options:
   -l, --levels n        descend to n levels (non negative integer)
   -n, --dry-run         dry run or Print-only mode. This is used as default if <path> is not present
   -V, --verb            switch to verbose mode i.e. list deleted files
-  -x, --link            search and remove broken links only
+  -x, --broken-link            search and remove broken links only
   -v, --version         print version and exit
   -h, --help            print this help and exit
 
@@ -87,7 +87,7 @@ while [[ $1 == -* ]]; do
           OPT2="$OPT2 -print"; shift 1 ;;
     -v|--version)
           version; exit 0 ;;
-    -x|--link)
+    -x|--broken-link)
           TAG='broken links'; OPT="$OPT -xtype l"; shift 1 ;;
     --)
           shift; break ;;
@@ -106,10 +106,11 @@ echo -e "Search/Clean ${TAG} from $ROOT ..\n"
 # and exit
 if [[ $# -lt 1 || $DRY_RUN -eq 1 ]]; then
   echo -e "\n === dry-run: ${0##*/}: $TAG: begin ===\n"
-  find $ROOT$LEV$OPT -print | nl -p || exit $?
+  # echo "find ${ROOT}${LEV}${OPT} -print"
+  (find ${ROOT}${LEV}${OPT} || exit $?) | nl -p
   echo -e "\n === dry-run: ${0##*/}: $TAG: end ===\n"
   exit 0
 fi
 
 # Delete empty path(s) or broken links
-find $ROOT$LEV$OPT -delete $OPT2 | nl -p
+find ${ROOT}${LEV}${OPT} -delete $OPT2 | nl -p

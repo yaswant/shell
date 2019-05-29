@@ -23,26 +23,26 @@ usage()
 cat <<EOF
 
 NAME
-        ${0##*/} - show serial day of year
+    ${0##*/} - show serial day of year
 
 SYNOPSIS
-        ${0##*/} date
-        Valid date formats:
-            CCYY-MM-DD
-            CCYY/MM/DD
-            CCYYMMDD
-            CCYY MM DD
-            DD-MM-CCYY (- can be any character in this form)
-            DDMMCCYY
-            DD MM YYYY
+    ${0##*/} date
+    Valid date formats:
+        CCYY-MM-DD
+        CCYY/MM/DD
+        CCYYMMDD
+        CCYY MM DD
+        DD-MM-CCYY (- can be any character in this form)
+        DDMMCCYY
+        DD MM YYYY
 
 
 DESCRIPTION
-        Display the Serial Day of Year for a given day month year in DD MM YYYY
-        FORMAT, or for the system date.
+    Display the Serial Day of Year for a given day month year in DD MM YYYY
+    FORMAT, or for the system date.
 
-        -?[help]    print this message and exit
-        -v          prints version information and exit
+    -?[help]    print this message and exit
+    -v          prints version information and exit
 
 Examples:
    doy              Return Serial Day of Year for the current date
@@ -53,20 +53,14 @@ EOF
 
 while getopts "h:v" OPTION
 do
-   case $OPTION in
-        h)
-	  usage
-	  exit 1
-	  ;;
-	v)
-	    echo -e "\n$0 version $version\n"
-	    exit
-	    ;;
-	?)
-	    usage
-	    exit
-	    ;;
-    esac
+  case $OPTION in
+    h)  usage; 
+        exit 1 ;;
+    v)  echo -e "\n$0 version $version\n"
+	    exit   ;;
+    ?)  usage;
+        exit   ;;
+  esac
 done
 #----------------------------------------------------------------
 

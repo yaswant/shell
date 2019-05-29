@@ -2,8 +2,7 @@
 set -e
 if [[ "$OSTYPE" == 'linux-gnu' ]]; then
   TEMP=$(getopt -o a:khqv --long agent:,keep,help,quiet,version \
-                -n 'tex2pdf' -- "$@")
-  [ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
+         -n 'tex2pdf' -- "$@") || { echo "Terminating..." >&2; exit 1 ; }
   eval set -- "$TEMP"
 fi
 
@@ -59,31 +58,32 @@ base=${1%.*}
 app="${app:-latex}"
 
 # check whether the app is installed
-hash $app 2>/dev/null \
+command -v "$app" 2>/dev/null \
   || { echo >&2 "** $app is not installed. Aborting."; exit 1; }
 
 # echo "$app $1 && bibtex ${base}.aux && $app $1 && $app $1"
-if (( $quiet )); then
-  $app $1 &> ${base}.out \
-    && bibtex ${base}.aux &>> ${base}.out \
-    && $app $1 &>> ${base}.out \
-    && $app $1 &>> ${base}.out
+if (( quiet )); then
+  $app "$1" &> "${base}.out" \
+    && bibtex "${base}.aux" &>> "${base}.out" \
+    && $app "$1" &>> "${base}.out" \
+    && $app "$1" &>> "${base}.out"
 else
-  $app $1 && bibtex ${base}.aux && $app $1 && $app $1
+  $app "$1" && bibtex "${base}.aux" && $app "$1" && $app "$1"
 fi
 
 
 case $app in
   latex|latexmk )
-    hash dvipdfmx 2>/dev/null \
+    command -v dvipdfmx 2>/dev/null \
       || { echo >&2 "** dvipdfmx is not installed. Aborting."; exit 1; }
-    (( "$quiet" )) && dvipdfmx ${base}.dvi &>> ${base}.out || dvipdfmx ${base}.dvi ;
-    (( "$keep" )) || rm -f ${base}.{aux,bbl,blg,toc,dvi,log,fls,fdb_latexmk} ;
+    (( quiet )) && dvipdfmx "${base}.dvi" &>> "${base}.out";
+    (( quiet == 0 )) && dvipdfmx "${base}.dvi" ;
+    (( keep )) || rm -f "${base}".{aux,bbl,blg,toc,dvi,log,fls,fdb_latexmk} ;
     ;;
   pdflatex)
-    (( "$keep" )) || rm -f ${base}.{aux,bbl,blg,toc,log} ;
+    (( keep )) || rm -f "${base}".{aux,bbl,blg,toc,log} ;
     ;;
   lualatex|xelatex )
-    (( "$keep" )) || rm -f ${base}.{aux,bbl,blg,toc,log} ;
+    (( keep )) || rm -f "${base}".{aux,bbl,blg,toc,log} ;
     ;;
 esac

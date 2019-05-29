@@ -16,8 +16,7 @@ BLDON=$(tput bold 2>/dev/null)
 BLDOF=$(tput sgr0 2>/dev/null)
 
 # -----------------------------------------------------------------------------
-usage()
-{
+usage(){
 cat << EOF
 ${BLDON}NAME${BLDOF}
     ${0##*/}, a GNU wget wrapper to trasfer (get) all files from a ftp directory.
@@ -92,7 +91,7 @@ STAT=('No problems occurred.'
       'File I/O error.'
       'Network failure.'
       'SSL verification failure.'
-      'Username/password authentication failure.'
+      'user-name/password authentication failure.'
       'Protocol errors.'
       'Server issued an error response.')
 
@@ -118,7 +117,6 @@ while [[ $1 == -* ]]; do
     esac
 done
 
-
 # Parse arguments:
 [[ $# -lt 1 ]] && { usage && exit 11; }
 
@@ -139,7 +137,7 @@ LIST="${saveDir}.html"
 # be overwritten if a previous index.html file is already in the path (will
 # write index.html1, index.html2.. instead). So we explicitly provide the name
 # of the html manifest file here
-wget -q -t 30 "$OPT" "$URL" -O index.html; status="$?"
+wget -q -t 30 $OPT "$URL" -O index.html; status="$?"
 if [[ "$status" -ne 0 ]]; then
     # echo " invalid url $URL";
     echo "[ERROR $status] ${STAT[$status]}"
@@ -174,13 +172,13 @@ mkdir -p "$saveDir"
 # Modify LIST content to get new files only
 if [[ "$SKIP_EXIST" = T ]]; then
     echo -e "Removing locally existing filenames from download list - $LIST ..\c"
-    for i in $(ls -1 "$saveDir"); do sed -i "/$i/d" "$LIST"; done
+    for i in $(/bin/ls -1 "$saveDir"); do sed -i "/$i/d" "$LIST"; done
     echo -e " done."
 fi
 
 
 # Start download files
-wget "$OPT" -c --retry-connrefuse -i "$LIST" -F -P "$saveDir"; status=$?
+wget $OPT -c --retry-connrefuse -i "$LIST" -F -P "$saveDir"; status=$?
 rm -f "${saveDir}/index.html"
 
 # Housekeep

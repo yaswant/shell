@@ -21,11 +21,10 @@
 # 2018-11-07 Update with various command-line options. yp.
 # 2018-11-07 Auto-switch remote server when one is down. yp.
 # =============================================================================
-if [[ "$OSTYPE" == 'linux-gnu' ]]; then
+if [[ "$OSTYPE" == 'linux'* ]]; then
   OPTS="$(getopt -o c:hk:p:P:r:s:v \
-                 --long collection:,help,key:,product:,directory-prefix:,remote-dir:,server:,version \
-                 --name "$0" -- "$@")"
-  [ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }
+    --long collection:,help,key:,product:,directory-prefix:,remote-dir:,server:,version \
+    --name "$0" -- "$@")" || { echo "Terminating..." >&2; exit 1 ; }
   eval set -- "$OPTS"
 fi
 
@@ -42,10 +41,10 @@ AUTH=$(cat ~/.modaps_auth)                      # app authentication token
 # LIST_FMT=csv                                  # csv | json | html (TODO)
 # -----------------------------------------------------------------------------
 
-msg() { echo -e "$(date -u +'%F %R:%S') $*" ;}
+msg(){ echo -e "$(date -u +'%F %R:%S') $*" ;}
 
-check_remote_host()
-{ # Check if any of the remote servers are up and running (rc: 2 = fail)
+check_remote_host(){
+  # Check if any of the remote servers are up and running (rc: 2 = fail)
   local def_server=${1:-$SERVER}
   local alt_server=${2:-$ALT_SERVER}
   curl --fail -L "$def_server" &>/dev/null \
@@ -117,11 +116,11 @@ echo -e "* ENDPOINTS=$ENDPOINTS\n* REMOTE_DIR=archives/${REM_PATH}"
 echo -e "* LOCAL_DIR=$WORK_DIR"
 echo "************************************************************************"
 
-mkdir -p "$WORK_DIR" && cd "$WORK_DIR" \
-  || { echo "Please specify LOCAL_DIR with -P option"; exit; }
+mkdir -p "$WORK_DIR" || exit
+cd "$WORK_DIR" || { echo "Please specify LOCAL_DIR with -P option"; exit; }
 
 # Update file lists -----------------------------------------------------------
-get_remote_list() { # Update file lists on remote server
+get_remote_list(){ # Update file lists on remote server
   remote_files=${1:-$REM_LIST_FILE}
   msg "Create/Update remote file-list> $remote_files ..\c"
   curl --header "Authorization: Bearer $AUTH" \
@@ -134,10 +133,10 @@ get_remote_list() { # Update file lists on remote server
   echo ' done.'
 }
 
-get_local_list() { # Update file lists on local path
+get_local_list(){ # Update file lists on local path
   local_files=${1:-$LOC_LIST_FILE}
   msg "Create/Update local file-list> $local_files ..\c"
-  ls -1 ${PRODUCT}*.hdf 2>/dev/null | sort > "$local_files"
+  /bin/ls -1 "${PRODUCT}"*.hdf 2>/dev/null | sort > "$local_files"
 
   # or with filename size (use cksum when available on remote server) list --
   # /bin/ls -lb *.hdf | awk '{print $9,$5}' > $local_files

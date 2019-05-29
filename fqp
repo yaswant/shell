@@ -6,8 +6,15 @@
 # -----------------------------------------------------------------------------
 
 [[ $# -eq 0 ]] && echo "usage: ${0##/*} filename(s)" && exit 1
-if [[ "$OSTYPE" == 'darwin'* ]]; then
-  for i in $@; do stat -f $i; done
-else
-  for i in $@; do readlink -ev $i; done
-fi
+
+case "$OSTYPE" in
+  'linux'*)
+    for i in "$@"; do readlink -ev "$i"; done
+    ;;
+  'darwin'*)
+    for i in "$@"; do stat -f "$i"; done
+    ;;
+  *)
+    echo "Error: Unsupported OS"; exit 1
+    ;;
+esac

@@ -2,7 +2,7 @@
 [ -n "$DEBUG" ] && set -x
 
 # ----------------------------------------------------------------------------
-if [[ "$OSTYPE" == 'linux-gnu' ]]; then
+if [[ "$OSTYPE" == 'linux'* ]]; then
   TEMP=$(getopt -o f:hvV --long format:,help,version,VERBOSE \
                 --name "$0" -- "$@")
   [ $? != 0 ] && { echo "Terminating..." >&2; exit 1 ; }

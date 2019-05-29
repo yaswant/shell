@@ -1,12 +1,24 @@
 #!/bin/bash
-# usage: strjoin delimiter values
-# examples:
-#   strjoin , a "b c" d #a,b c,d
-#   strjoin / var local tmp #var/local/tmp
-#   strjoin , "${FOO[@]}" #a,b,c
-# function strjoin() { local IFS="$1"; shift; echo "$*"; }
+# Usage: strjoin delimiter array
+#
+# Examples:
+#   strjoin , a "b c" d  # a,b c,d
+#   strjoin / var local tmp  # var/local/tmp
+#   strjoin "\/" var local tmp  # var\/local\/tmp
+#
+#
+# Other ways to join strings by single character delimiter:
+# strjoin(){ local IFS="$1"; shift; echo "$*"; unset IFS; }
+# strjoin(){ local IFS="$1"; __="${*:2}"; echo "$__"; }
+#
+# Or multi-character delimiter:
+# strjoin(){ local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
+#
+# 2019-05-28 yaswant.pradhan
 # -----------------------------------------------------------------------------
 
-_IFS="$IFS"
-IFS="$1"; shift; echo "$*";
-IFS="$_IFS"
+sep=$1 IFS=
+array=$2
+shift 2 || shift $(($#))
+array+="${*/#/$sep}"
+echo "$array"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Set-up ~/.mailrc to work via O365 smtp authentication.
+# Set-up ~/.mailrc to work via O365 SMTP authentication.
 # usage: mailx365-setup <O365 App authentication code>
 #
 # creates:
@@ -22,15 +22,23 @@ user_email=$(getent passwd $USER |cut -d: -f5)@metoffice.gov.uk  # <- update
 auth_help()
 { # Check for O365 app authentication file for mail ---------------------------
 cat << EOF
-A. Please follow the instruction below to generate Office365 app authentication token:
+A. Generate Office365 app authentication token:
+   1. Go to https://account.activedirectory.windowsazure.com/AppPasswords.aspx
+      and jump to A.3.
 
-   1. Navigate to https://myapps.microsoft.com.
-   2. Click on the user name on the top right hand corner.
-   3. Select 'Profile' from the drop down options.
-   4. Under 'Manage account' options Click 'Additional security verification'.
-   5. Select 'App Passwords' in the heading.
-   6. Select 'create', give your new password a relevant name.
-   7. Select 'next' and copy the 16 character token somewhere safe.
+   2. [optional] If the link in A.1 does not redirect to appropriate location:
+   2.1. Navigate to https://myapps.microsoft.com.
+   2.2. Click on the user name on the top right hand corner.
+   2.3. Select 'Profile' from the drop down options.
+   2.4. Under the 'Manage account' column Click 'Additional security verification'.
+   2.5. Select 'App Passwords' in the heading.
+
+   3. Click on 'create' button.
+   4. Enter a relevant name.
+   5. Select 'next' and copy the password (o365_app_token) somewhere safe.
+
+B. Run (this) mail set-up script from a terminal using the following command:
+   (replace <o365_app_token> with actual password)
 
 B. Then run: ${0##*/} o365_app_token
 
@@ -86,13 +94,15 @@ if [ ! -f "$o365cert" ]; then
   mkdir -p "$CERT_DIR"
   # opt 1. Create new certificate and key databases in $CERT_DIR
   # this will mostly likely result in certificate verification error.
-  #certutil -N -d "$CERT_DIR"
+  # certutil -N -d "$CERT_DIR"
 
-  # opt 2. Link to databases of trusted certificate authorities in $CERT_DIR
+  # opt 2. Link to databases (cert8.db and key3.db required) of trusted
+  # certificate authorities in $CERT_DIR
   for i in /etc/pki/nssdb/*; do
-    ln -sf $i -t $CERT_DIR
+    ln -sf "$i" -t $CERT_DIR
   done
 
+  # optional: create a certificate and restrict permission
   echo -n \
     | openssl s_client -starttls smtp -crlf -connect $SMTP \
     | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > "$o365cert"

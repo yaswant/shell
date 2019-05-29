@@ -1,5 +1,5 @@
 #!/bin/bash
-# dev2bin decimal_value
+# dec2bin decimal_value
 #
 # Convert Value from decimal to binary
 # yaswant.pradhan

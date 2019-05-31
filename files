@@ -106,6 +106,7 @@ EOF
 # -----------------------------------------------------------------------------
 
 # Default settings:
+TMPDIR=${TMPDIR:-$PWD}
 OPT='-type f'               # Find options (search files only)
 DEL=                        # Delete files
 LOPT=                       # Option to control treatment of symbolic links

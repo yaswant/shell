@@ -1,0 +1,20 @@
+#!/bin/bash
+
+infile="$1"
+outfile="${infile%.*}-gray.pdf"
+
+echo "$infile -> $outfile"
+
+gs \
+  -sDEVICE=pdfwrite \
+  -sColorConversionStrategy=Gray \
+  -dProcessColorModel=/DeviceGray \
+  -dCompatibilityLevel=1.4 \
+  -dPDFSETTINGS=/ebook \
+  -dNOPAUSE \
+  -dQUIET \
+  -dBATCH \
+  -dDetectDuplicateImages \
+  -dCompressFonts=true \
+  -sOutputFile="$outfile" \
+  "$infile"

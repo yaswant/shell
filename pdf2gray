@@ -1,5 +1,8 @@
 #!/bin/bash
-
+# Down-scale colour PDF to grey.
+#
+# yaswant.pradhan
+# -----------------------------------------------------------------------------
 infile="$1"
 outfile="${infile%.*}-gray.pdf"
 
@@ -7,14 +10,14 @@ echo "$infile -> $outfile"
 
 gs \
   -sDEVICE=pdfwrite \
+  -dCompatibilityLevel=1.4 \
   -sColorConversionStrategy=Gray \
   -dProcessColorModel=/DeviceGray \
-  -dCompatibilityLevel=1.4 \
   -dPDFSETTINGS=/ebook \
+  -dCompressFonts=true \
   -dNOPAUSE \
   -dQUIET \
   -dBATCH \
   -dDetectDuplicateImages \
-  -dCompressFonts=true \
   -sOutputFile="$outfile" \
   "$infile"

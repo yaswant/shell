@@ -14,7 +14,7 @@
 # yaswant.pradhan
 # -----------------------------------------------------------------------------
 
-[ $(command -v date2julian 1>/dev/null) ] || echo 'not found'
+command -v date2julian || { echo 'date2julian not found'; exit 1;}
 case "$#" in
     1 ) DATE1=$(date -d "$1" +%F)
         DATE2=$(date +%F)

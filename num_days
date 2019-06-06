@@ -10,9 +10,11 @@ usage(){ echo "syntax: ${0##*/} DATE1 [DATE2]"; }
 
 if [[ "$OSTYPE" == 'darwin'* ]]; then
     DATE2=${2:-$(date +%F)}
-    echo $(( (`date -jf %F $DATE2 +%s` - `date -jf %F $1 +%s`) / (24*3600) ))
+    # echo $(( (`date -jf %F "$DATE2" +%s` - `date -jf %F "$1" +%s`) / (24*3600) ))
+    bc <<< "($(date -jf %F "$DATE2" +%s)-$(date -jf %F "$1" +%s))/86400"
 else
-    DATE1=$(date -d $1 +%F)
-    DATE2=$(date -d $2 +%F)
-    echo $(( (`date -d $DATE2 +%s` - `date -d $DATE1 +%s`) /(24*3600) ))
+    DATE1=$(date -d "$1" +%F)
+    DATE2=$(date -d "$2" +%F)
+    # echo $(( ($(date -d "$DATE2" +%s)-$(date -d "$DATE1" +%s)) / (24*3600) ))
+    bc <<< "($(date -d "$DATE2" +%s)-$(date -d "$DATE1" +%s))/86400"
 fi

@@ -1,11 +1,10 @@
 #!/bin/bash
 #-----------------------------------------------------
 # NAME
-#       doy - print Serial Day of Year
+#   doy - print Serial Day of Year
 #
 # SYNOPSIS
-#       doy [OPTION]
-#	doy [DD MM YYYY | -h]
+#   doy [date] | [--help] |
 #
 # VERSION
 #	0.2
@@ -14,8 +13,6 @@
 # AUTHOR
 #	fra6@eld047 (Yaswant Pradhan)
 #-----------------------------------------------------
-
-#---------------------------------------------------------------
 version=1.0
 
 usage()
@@ -41,8 +38,8 @@ DESCRIPTION
     Display the Serial Day of Year for a given day month year in DD MM YYYY
     FORMAT, or for the system date.
 
-    -?[help]    print this message and exit
-    -v          prints version information and exit
+    -h -? --help    print this message and exit
+    -v    --version prints version information and exit
 
 Examples:
    doy              Return Serial Day of Year for the current date
@@ -62,7 +59,6 @@ do
         exit   ;;
   esac
 done
-#----------------------------------------------------------------
 
 case $# in
     0)  # Current system doy
@@ -92,18 +88,18 @@ case $# in
                         d=$(echo $1 |cut -c1-2)
                         ret=$(date -d $y$m$d +'%j' 2>/dev/null)
                         [[ $? -eq 0 ]] && echo $ret || \
-                        (echo "invalid date" && exit 1)
+                        (echo "invalid date format" && exit 1)
                         exit $?;;
                 esac
                 ;;
-            *)  echo "invalid len";;
+            *)  echo "invalid date"; usage; exit 1;;
         esac
         ;;
     3)  #echo "3 args"
         case ${#1} in
             2) date -d $3$2$1 +'%j'; exit $?;;
             4) date -d $1$2$3 +'%j'; exit $?;;
-            ?) echo "invalid date"; exit 1;;
+            ?) echo "invalid date"; usage; exit 1;;
         esac
         ;;
     *)  usage; exit ;;

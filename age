@@ -10,26 +10,9 @@
 # Yaswant Pradhan
 # -----------------------------------------------------------------------------
 
-
-# Settings --------------------------------------------------------------------
-export TZ=Europe/London
-birthday=${1:-20150417}
-format=${2:-'%Y%m%d'}
-if [[ "$OSTYPE" == darwin* ]]; then
-    s1=$(date -jf "$format" "$birthday" +'%s')
-else
-    s1=$(date -d "$birthday" +'%s')
-fi
-s2=$(date +'%s')
-sd=$((s2 - s1))
-nyears=$(echo $sd|awk '{printf "%d",$1/3.154e+7}')
-nmonths=$(echo $sd|awk '{printf "%d",$1/2.628e+6}')
-rdays=$(echo $sd|awk '{printf "%d\n",($1/86400)%30.42}')
-
-
 # Usage -----------------------------------------------------------------------
 usage(){
-less<<EOF
+cat<<EOF
 
 SYNOPSIS
     ${0##*/} DOB [format]
@@ -40,12 +23,30 @@ SYNOPSIS
         "CCYYmmDD HH:MM:SS"
         "CCYYmmDD HH:MM:SSTZ"  TZ +0100 or -0530 form
 
-    - use format specification on POSIX systems.
+    - format specification is required on (MacOS) POSIX systems 
 
 DESCRIPTION
     Get Age from date of birth
 EOF
 }
+
+
+# Settings --------------------------------------------------------------------
+export TZ=Europe/London
+birthday=${1:-20150417}
+format="$2"
+if [[ "$OSTYPE" == darwin* ]]; then
+  [ -z "$format" ] && { echo "Syntax error: missing Format spec."; usage; exit 1; }
+  s1=$(date -jf "$format" "$birthday" +'%s')
+else
+  s1=$(date -d "$birthday" +'%s')
+fi
+s2=$(date +'%s')
+sd=$((s2 - s1))
+nyears=$(echo $sd|awk '{printf "%d",$1/3.154e+7}')
+nmonths=$(echo $sd|awk '{printf "%d",$1/2.628e+6}')
+rdays=$(echo $sd|awk '{printf "%d\n",($1/86400)%30.42}')
+
 
 # Print total age and breakdown
 echo "$nyears years $((nmonths - nyears*12)) months $rdays days.";

@@ -22,7 +22,7 @@ case "$#" in
     2 ) DATE1=$(date -d "$1" +%F)
         DATE2=$(date -d "$2" +%F)
         ;;
-    * ) echo -e "syntax: $(basename $0) DATE1 [DATE2]"
+    * ) echo -e "syntax: ${0##*/} DATE1 [DATE2]"
         exit 2
         ;;
 esac

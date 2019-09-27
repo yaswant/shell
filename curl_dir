@@ -34,62 +34,62 @@ urlstat() { ## check URL validity
 }
 
 
-usage() {
+usage(){
 cat << EOF
 ${BLDON}NAME${BLDOF}
-    $(basename $0)
-        A cURL wrapper to trasfer (fetch) all files from a ftp directory.
-        Existing files are updated (see curl -C flag) by automatically finding
-        where to resume the transfer.
+  ${0##*/}
+    A cURL wrapper to trasfer (fetch) all files from a ftp directory.
+    Existing files are updated (see curl -C flag) by automatically finding
+    where to resume the transfer.
 
 ${BLDON}SYNOPSIS${BLDOF}
-    $(basename $0) [OPTION] ftpDir [saveDir]
+  ${0##*/} [OPTION] ftpDir [saveDir]
 
 ${BLDON}DESCRIPTION${BLDOF}
   Options:
     -h, --help, -?
-            show this message.
+          show this message.
 
     -b, --batch <num>
-            Number of files in each batch. Download will forward to next batch
-            once all files in the previous batch are finished. (default: 10 files)
+          Number of files in each batch. Download will forward to next batch
+          once all files in the previous batch are finished. (default: 10 files)
 
     -k, --keep
-            Keep the temporary listFile for diagnostics purpose
-            (default action is to auto clean the tmp file)
+          Keep the temporary listFile for diagnostics purpose
+          (default action is to auto clean the tmp file)
 
     -f, --filter <pat>
-            Filter the files with regular expression (advisable)
+          Filter the files with regular expression (advisable)
 
     -fx <pat>
-            Filter the files with file suffix
+          Filter the files with file suffix
 
     -t, --retry  <num>
-            Retry request <num>-times if transient problems occur. (default: 3)
+          Retry request <num>-times if transient problems occur. (default: 3)
 
     -m, --maxtime <sec>
-            Maximum time in <seconds> that you allow the whole operation to
-            take.  This is useful to preventing your  batch jobs from hanging
-            over hours due to slow networks or links going down. If this option
-            is used several times, the last one will be used. (default: 5 min)
+          Maximum time in <seconds> that you allow the whole operation to
+          take.  This is useful to preventing your  batch jobs from hanging
+          over hours due to slow networks or links going down. If this option
+          is used several times, the last one will be used. (default: 5 min)
 
     -n, --dry-run
-            Print a list of [matching] files on the server. Dont download yet.
+          Print a list of [matching] files on the server. Dont download yet.
 
     -v, --verbose
-            Make the operation more talkative. (default: quiet)
+          Make the operation more talkative. (default: quiet)
 
     -x, --proxy <proxyhost[:port]>
             Use the specified HTTP proxy. Default is
 
 
     <ftpDir> URL/PATH
-            Full Path to ftp directory including server address.
+          Full Path to ftp directory including server address.
 
     <saveDir> optional
-            saveDir is the directory where all other files and subdirectories
-            will be saved to, i.e. the top of the retrieval tree. The default
-            is base directory of the ftp address (in the current directory)
+          saveDir is the directory where all other files and subdirectories
+          will be saved to, i.e. the top of the retrieval tree. The default
+          is base directory of the ftp address (in the current directory)
 
 ${BLDON}COPYRIGHT${BLDOF}
     Copyright (C) 2011 Free Software Foundation, Inc.  License GPLv3+: GNU GPL version 3 or later
@@ -140,11 +140,11 @@ done
 
 # Parse arguments
 [[ $# -lt 1 ]] && usage | more && exit 0
-saveDir=${2:-$(basename $1)}
+saveDir=${2:-${1##*/}}
 
 # Create a temporary listfile (plain text) to download each items
 # from the server recursively #fileList="/var/tmp/$USER/curl.files.list"
-fileList=$(mktemp $(basename $0).flist.XXXXXX --tmpdir=${TMPDIR}/${USER})
+fileList=$(mktemp "${0##*/}".flist.XXXXXX --tmpdir="${TMPDIR}/${USER}")
 [[ "$quiet" -eq 0 ]] && echo -e "Listfile: $fileList"
 
 
@@ -155,16 +155,16 @@ fileList=$(mktemp $(basename $0).flist.XXXXXX --tmpdir=${TMPDIR}/${USER})
 
 # Check validity of the remote URL
 curl -x $PROXY --fail ${1}/ &>/dev/null
-[[ $? -ne 0 ]] && echo "E: invalid dir ${1}" && rm -f $fileList && exit 1
+[[ $? -ne 0 ]] && echo "E: invalid dir ${1}" && rm -f "$fileList" && exit 1
 
 
 # Add files with prescribed filter in the list file
 if [ -z "$FILTER" ]; then
   curl -x $PROXY -s ${1}/ | tail -n+6 | grep -Po '(?<=href=").*' \
-    | cut -d'"' -f 1 > $fileList
+  | cut -d'"' -f 1 > "$fileList"
 else
   curl -x $PROXY -s ${1}/ | grep -Po '(?<=href=").*' | cut -d'"' -f 1 \
-    | grep "$FILTER" > $fileList
+  | grep "$FILTER" > "$fileList"
 fi
 
 
@@ -172,30 +172,31 @@ fi
 nFiles=$(cat $fileList | wc -l)
 
 [[ "$nFiles" -eq 0 ]] \
-  && echo -e "\nE: $1 --Invalid URI or File Filter--\n" \
-  && exit 1
+&& echo -e "\nE: $1 --Invalid URI or File Filter--\n" \
+&& exit 1
 
 [[ "$nFiles" -gt "$BATCH" && "$quiet" -eq 0 ]] \
-  && echo -e "\nW: number of files to download "$nFiles"
+&& echo -e "\nW: number of files to download $nFiles
   I: batch_dnld ON; process will wait between each batch of $BATCH files\n"
 
-decode_url $fileList
-if (( $DRY_RUN )); then
+decode_url "$fileList"
+if (( DRY_RUN )); then
   msg "[DRY-RUN] Listing $nFiles matching files on remote-server:"
-  cat $fileList | sed 's!.*/!!' | sort | uniq | nl
-  rm -f $fileList
+  # cat "$fileList" | sed 's!.*/!!' | sort | uniq | nl
+  sed 's!.*/!!' "$fileList" | sort | uniq | nl
+  rm -f "$fileList"
   echo -e "\nNumber of matching files = $nFiles"
   exit $?
 fi
 
 # Create a save Directory and cd to it where the files will be stored
-mkdir -p $saveDir && cd $saveDir || exit $?
+mkdir -p "$saveDir" && cd "$saveDir" || exit $?
 msg "Downloading $nFiles files to: $saveDir/"
 cnt=0
 
 
 # Download files listed in fileList (in batches of $BATCH files) --------------
-while read file; do
+while read -r file; do
 
   printf "."
   # Check if file is a valid URL
@@ -213,7 +214,7 @@ while read file; do
   cnt=$((cnt + 1))
   [[ $(( cnt % BATCH )) -eq 0 ]] && wait && echo -e " \c";
 
-done < $fileList
+done < "$fileList"
 wait
 
 echo; msg "Download complete."; hr
@@ -221,11 +222,11 @@ echo; msg "Download complete."; hr
 
 # Housekeep -------------------------------------------------------------------
 if [[ "$KEEPTMP" -eq 1 ]]; then
-  read -p "Do you want to remove the listFile $fileList? " yn
+  read -rp "Do you want to remove the listFile $fileList? " yn
   case $yn in
-    [Yy]* ) rm -f $fileList; exit;;
+    [Yy]* ) rm -f "$fileList"; exit;;
     [Nn]*| * ) exit;;
   esac
 else
-  rm -f $fileList
+  rm -f "$fileList"
 fi

@@ -1,25 +1,49 @@
-#!/bin/sh
-# Name: encrypt
-# Usage: encrypt Path
-#   Path can be a file or a directory
-#   If Path is a file, then output will be Path.gpg
-#   If Path is a dir, then output will be Path.tgz.gpg
+#!/bin/bash
+# Name:
+#   encrypt
+#
+# Usage:
+#   encrypt File|Directory
+#       Path can be a file or a directory
+#       If Path is a file, then output will be {basename}.gpg
+#       If Path is a directory, then output will be {basename}.tgz.gpg
 #
 # See also: decrypt
 #
-# yaswant.pradhan
+# Author:
+#   yaswant.pradhan
+#
+# History:
+#   2019-09-20 simplify encryption output path. yp.
+#   2018-10-29 performance improvement. yp
+#   2016-02-17 encrypt any file/directory. yp.
+# -----------------------------------------------------------------------------
+#shellcheck disable=SC2086
 
-[ -z $1 ] && echo -e "Usage:\n  `basename $0` Path\n" && exit 1
+[ -z "$1" ] && echo -e "Usage:\n  ${0##*/} Path\n" && exit 1
 
-SRC=`basename $1`
-TMP=${SRC}.tgz
+case "$OSTYPE" in
+  linux*) FILEPATH=$(readlink -ev "$1") ;;
+  darwin*) FILEPATH=$(stat -f "$1") ;;
+  *) printf "Unsupported OS"; exit 1;;
+esac
 
-[ -f ${SRC} ] && gpg -c ${SRC} 2>/dev/null && exit $?
+SRC="${FILEPATH##*/}"
+OUT=$(pwd)
+GPG_OPT='--symmetric --cipher-algo AES256'
 
-if [ -d $SRC ]; then
-    tar -czf ${SRC}.tgz ${SRC};
-    gpg -c ${TMP} 2>/dev/null;
-    $(which rm) ${TMP};
-    exit $?;
+if [ -f "$FILEPATH" ]; then
+  # encrypt file:
+  OUTFILE="${OUT}/${SRC}.gpg"
+  gpg $GPG_OPT --output "$OUTFILE" "$FILEPATH" || exit $?
+  printf "%s\n" "Encrypted File: $OUTFILE"
+elif [ -d "$FILEPATH" ]; then
+  # encrypt directory: create compressed tar (strip full path) and encrypt
+  OUTFILE="${OUT}/${SRC}.tgz.gpg"
+  tar -cz -C "${FILEPATH%/*}" "$SRC" | gpg --output "$OUTFILE" $GPG_OPT || \
+  exit $?
+  printf "%s\n" "Encrypted File: $OUTFILE"
+else
+  printf "%s\n" "$FILEPATH must be a file or directory."
+  exit 1
 fi
-

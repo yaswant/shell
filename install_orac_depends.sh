@@ -47,7 +47,8 @@
 #       module load libraries/gcc gcc
 #
 #
-# 2018-06-28: Adam Povey, Yaswant Pradhan
+# 2018-06-28: Yaswant Pradhan
+# 2019-03-08: check invalid download sources. (YP)
 # -----------------------------------------------------------------------------
 
 set -e
@@ -107,16 +108,16 @@ EOF
 }
 # Parse command-line arguments
 while [[ $1 == -* ]]; do
-    case "$1" in
-        -h|--help|-\?) usage |more; exit 0;;
-        -d|--downloads) STORE="$2"; shift 2;;
-        -e|--extract-dir) EXTRACT="$2"; shift 2;;
-        -i|--install-dir) INSTALL="$2"; shift 2;;
-        -f|--force) FORCE=1; shift 1;;
-        -t|--test-install) TEST=1; shift 1;;
-        --) shift; break;;
-        -*) echo "invalid option: $1" 1>&2; usage |more; exit 1;;
-    esac
+  case "$1" in
+    -h|--help|-\?) usage |more; exit 0;;
+    -d|--downloads) STORE="$2"; shift 2;;
+    -e|--extract-dir) EXTRACT="$2"; shift 2;;
+    -i|--install-dir) INSTALL="$2"; shift 2;;
+    -f|--force) FORCE=1; shift 1;;
+    -t|--test-install) TEST=1; shift 1;;
+    --) shift; break;;
+    -*) echo "invalid option: $1" 1>&2; usage |more; exit 1;;
+  esac
 done
 
 echo -e "\nROOT_DIR=$STORE"
@@ -130,6 +131,12 @@ read -p "Proceed with installation (y|n)?: " choice
 [ ! -d $EXTRACT ] && mkdir -p $EXTRACT
 [ ! -d $INSTALL ] && mkdir -p $INSTALL
 
+
+test_url(){
+  local URL="$1"
+  curl --output /dev/null --silent --head --fail -L "$URL"; rc=$?
+  (( $rc == 0 )) || { echo "Error: $rc -> $URL"; return $rc; }
+}
 # -----------------------------------------------------------------------------
 # 1. SZIP: Where to get the source?
 # https://support.hdfgroup.org/ftp/lib-external/szip/2.1.1/src/
@@ -138,24 +145,26 @@ read -p "Proceed with installation (y|n)?: " choice
 PROG=szip-2.1.1
 SZIP_DIR=$INSTALL/szip
 if [ ! -d "$SZIP_DIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    # Download...
-    if [ ! -f $STORE/$PROG.tar.gz ]; then
-        echo "Downloading $PROG ..."
-        curl -C - -o $STORE/$PROG.tar.gz -L https://bit.ly/2IRdOXS
+  cd $EXTRACT
+  # Download...
+  if [ ! -f $STORE/$PROG.tar.gz ]; then
+    if test_url https://bit.ly/2IRdOXS; then
+      echo "Downloading $PROG ..."
+      curl -C - -o $STORE/$PROG.tar.gz -L https://bit.ly/2IRdOXS
     fi
-    # Extract...
-    tar -xzf $STORE/$PROG.tar.gz
-    cd $PROG
-    [ ! -d $SZIP_DIR ] && mkdir $SZIP_DIR
-    echo "Installing $PROG ..."
-    CFLAGS="-fPIC -O3 -w" ./configure --prefix=$SZIP_DIR
-    make
-    if (( $TEST )); then
-        make check
-    fi
-    make install
-    # rm -rf $EXTRACT/$PROG
+  fi
+  # Extract...
+  tar -xzf $STORE/$PROG.tar.gz
+  cd $PROG
+  [ ! -d $SZIP_DIR ] && mkdir $SZIP_DIR
+  echo "Installing $PROG ..."
+  CFLAGS="-fPIC -O3 -w" ./configure --prefix=$SZIP_DIR
+
+  make
+  (( $TEST )) && make check
+
+  make install
+  # rm -rf $EXTRACT/$PROG
 fi
 export LD_LIBRARY_PATH=$SZIP_DIR/lib:$LD_LIBRARY_PATH
 
@@ -169,28 +178,29 @@ export LD_LIBRARY_PATH=$SZIP_DIR/lib:$LD_LIBRARY_PATH
 PROG=hdf5-1.10.2
 HDF5_DIR=$INSTALL/hdf5
 if [ ! -d "$HDF5_DIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    if [ ! -f $STORE/$PROG.tar.gz ]; then
-        echo "Downloading $PROG ..."
-        curl -C - -o $STORE/$PROG.tar.gz -L https://bit.ly/2z3It4R
-        # wget -nd -O $STORE/$PROG.tar.gz https://bit.ly/2z3It4R
+  cd $EXTRACT
+  if [ ! -f $STORE/$PROG.tar.gz ]; then
+    if test_url https://bit.ly/2z3It4R; then
+      echo "Downloading $PROG ..."
+      curl -C - -o $STORE/$PROG.tar.gz -L https://bit.ly/2z3It4R
+      # wget -nd -O $STORE/$PROG.tar.gz https://bit.ly/2z3It4R
     fi
-    tar -xzf $STORE/$PROG.tar.gz
-    cd $PROG
-    [ ! -d $HDF5_DIR ] && mkdir $HDF5_DIR
-    echo "Installing $PROG ..."
-    CFLAGS="-fPIC -w" CXXFLAGS="-fPIC -w" FFLAGS="-fPIC -w" \
-        ./configure --prefix=$HDF5_DIR --enable-build-mode=production \
-        --enable-fortran --enable-cxx --with-szlib=$SZIP_DIR
-    make
-    if (( $TEST )); then
-        make check
-    fi
-    make install
-    if (( $TEST )); then
-        make check-install
-    fi
-    # rm -rf $EXTRACT/$PROG
+  fi
+  tar -xzf $STORE/$PROG.tar.gz
+  cd $PROG
+  [ ! -d $HDF5_DIR ] && mkdir $HDF5_DIR
+  echo "Installing $PROG ..."
+  CFLAGS="-fPIC -w" CXXFLAGS="-fPIC -w" FFLAGS="-fPIC -w" \
+    ./configure --prefix=$HDF5_DIR --enable-build-mode=production \
+    --enable-fortran --enable-cxx --with-szlib=$SZIP_DIR
+
+  make
+  (( $TEST )) && make check
+
+  make install
+  (( $TEST )) && make check-install
+
+  # rm -rf $EXTRACT/$PROG
 fi
 export LD_LIBRARY_PATH=$HDF5_DIR/lib:$LD_LIBRARY_PATH
 
@@ -203,27 +213,27 @@ export LD_LIBRARY_PATH=$HDF5_DIR/lib:$LD_LIBRARY_PATH
 PROG=hdf-4.2.13
 HDF4_DIR=$INSTALL/hdf4
 if [ ! -d "$HDF4_DIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    if [ ! -f $STORE/$PROG.tar ]; then
-        echo "Downloading $PROG ..."
-        curl -C - -o $STORE/$PROG.tar -L https://bit.ly/2NnI9Ru
+  cd $EXTRACT
+  if [ ! -f $STORE/$PROG.tar ]; then
+    if test_url https://bit.ly/2NnI9Ru; then
+      echo "Downloading $PROG ..."
+      curl -C - -o $STORE/$PROG.tar -L https://bit.ly/2NnI9Ru
     fi
-    tar -xf $STORE/$PROG.tar
-    cd $PROG
-    [ ! -d $HDF4_DIR ] && mkdir $HDF4_DIR
-    echo "Installing $PROG ..."
-    F77=$FC CFLAGS="-fPIC -w" CXXFLAGS="-fPIC -w" FFLAGS="-fPIC -w" \
-        ./configure --prefix=$HDF4_DIR --disable-netcdf \
-        --with-szlib=$SZIP_DIR
-    make
-    if (( $TEST )); then
-        make check
-    fi
-    make install
-    if (( $TEST )); then
-        make installcheck
-    fi
-    # rm -rf $EXTRACT/$PROG
+  fi
+  tar -xf $STORE/$PROG.tar
+  cd $PROG
+  [ ! -d $HDF4_DIR ] && mkdir $HDF4_DIR
+  echo "Installing $PROG ..."
+  F77=$FC CFLAGS="-fPIC -w" CXXFLAGS="-fPIC -w" FFLAGS="-fPIC -w" \
+    ./configure --prefix=$HDF4_DIR --disable-netcdf \
+    --with-szlib=$SZIP_DIR
+
+  make
+  (( $TEST )) && make check
+
+  make install
+  (( $TEST )) && make installcheck
+  # rm -rf $EXTRACT/$PROG
 fi
 export LD_LIBRARY_PATH=$HDF4_DIR/lib:$LD_LIBRARY_PATH
 
@@ -234,41 +244,54 @@ export LD_LIBRARY_PATH=$HDF4_DIR/lib:$LD_LIBRARY_PATH
 # ftp://edhs1.gsfc.nasa.gov/edhs/hdfeos/latest_release/HDF-EOS2.20v1.00.tar.Z
 # ftp://edhs1.gsfc.nasa.gov/edhs/hdfeos/latest_release/
 # HDF-EOS2.20v1.00_TestDriver.tar.Z
+# address changed (2019-03-08)
+# https://observer.gsfc.nasa.gov/ftp/edhs/hdfeos/latest_release/HDF-EOS2.20v1.00.tar.Z
+# https://observer.gsfc.nasa.gov/ftp/edhs/hdfeos/latest_release/HDF-EOS2.20v1.00_TestDriver.tar.Z
 # -----------------------------------------------------------------------------
 PROG=HDF-EOS2.20
 EOS_DIR=$INSTALL/hdfeos
-if [ ! -d "$EOS_DIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    if [ ! -f $STORE/${PROG}v1.00.tar.Z ]; then
-        echo "Downloading $PROG ..."
-        curl -C - -o $STORE/${PROG}v1.00.tar.Z -L https://go.nasa.gov/2KIYSgm
+EOS_URL=https://go.nasa.gov/2TESDlt
+DRIVER_URL=https://go.nasa.gov/2TIzE9T
 
-        curl -C - -o $STORE/${PROG}v1.00_TestDriver.tar.Z \
-            -L https://go.nasa.gov/2MNQJrw
+if [ ! -d "$EOS_DIR" ] || (( FORCE )) ; then
+  cd "$EXTRACT"
+  if [ ! -f "$STORE/${PROG}v1.00.tar.Z" ]; then
+    echo "Downloading $PROG ..."
+    # curl -C - -o $STORE/${PROG}v1.00.tar.Z -L https://go.nasa.gov/2KIYSgm
+    # curl -C - -o $STORE/${PROG}v1.00_TestDriver.tar.Z -L https://go.nasa.gov/2MNQJrw
+
+    if test_url "$EOS_URL"; then
+      curl -C - -o "$STORE/${PROG}v1.00.tar.Z" -L "$EOS_SRC_URL"
     fi
-    tar -xzf $STORE/${PROG}v1.00.tar.Z
-    if (( $TEST )); then
-        tar -xzf $STORE/${PROG}v1.00_TestDriver.tar.Z
+
+    if test_url "$DRIVER_URL"; then
+      curl -C - -o "${STORE}/${PROG}v1.00_TestDriver.tar.Z" -L "$DRIVER_URL"
     fi
-    mv $EXTRACT/hdfeos $EXTRACT/$PROG
-    cd $PROG
-    [ ! -d $EOS_DIR ] && mkdir $EOS_DIR
-    echo "Installing $PROG ..."
-    FC=$FC FFLAGS="-fPIC -O0 -w" CFLAGS="-fPIC -Df2cFortran -O0 -w" \
-        CXXFLAGS="-fPIC -Df2cFortran -O0 -w" CC=$HDF4_DIR/bin/h4cc ./configure \
-        --prefix=$EOS_DIR --libdir=$EOS_DIR/lib --with-hdf4=$HDF4_DIR \
-        --enable-install-include --with-szlib=$SZIP_DIR
-    make
-    if (( $TEST )); then
-        # Fails as:
-        # " No rule to make target `testswath77.o', needed by `testswath_f77'."
-        make check
-    fi
-    make install
-    if (( $TEST )); then
-        make installcheck
-    fi
-    # rm -rf $EXTRACT/$PROG
+  fi
+  tar -xzf "$STORE/${PROG}v1.00.tar.Z"
+
+  if (( TEST )); then
+      tar -xzf "${STORE}/${PROG}v1.00_TestDriver.tar.Z"
+  fi
+  mv "${EXTRACT}/hdfeos" "${EXTRACT}/${PROG}"
+  cd $PROG
+  [ ! -d "$EOS_DIR" ] && mkdir "$EOS_DIR"
+  echo "Installing $PROG ..."
+  FC=$FC FFLAGS="-fPIC -O0 -w" CFLAGS="-fPIC -Df2cFortran -O0 -w" \
+    CXXFLAGS="-fPIC -Df2cFortran -O0 -w" CC=$HDF4_DIR/bin/h4cc ./configure \
+    --prefix=$EOS_DIR --libdir=$EOS_DIR/lib --with-hdf4=$HDF4_DIR \
+    --enable-install-include --with-szlib=$SZIP_DIR
+
+  make
+  if (( $TEST )); then
+    # Fails as:
+    # " No rule to make target `testswath77.o', needed by `testswath_f77'."
+    make check
+  fi
+
+  make install
+  (( $TEST )) && make installcheck
+  # rm -rf $EXTRACT/$PROG
 fi
 export LD_LIBRARY_PATH=$EOS_DIR/lib:$LD_LIBRARY_PATH
 
@@ -281,26 +304,28 @@ export LD_LIBRARY_PATH=$EOS_DIR/lib:$LD_LIBRARY_PATH
 PROG=netcdf-4.6.1
 NCDF4_DIR=$INSTALL/netcdf
 if [ ! -d "$NCDF4_DIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    if [ ! -f $STORE/$PROG.tar.gz ]; then
+  cd $EXTRACT
+  if [ ! -f $STORE/$PROG.tar.gz ]; then
+    if test_url https://bit.ly/2NlT5z0; then
         echo "Downloading $PROG ..."
         curl -C - -o $STORE/${PROG}.tar.gz -L https://bit.ly/2NlT5z0
     fi
-    tar -xzf $STORE/$PROG.tar.gz
-    cd $PROG
-    [ ! -d $NCDF4_DIR ] && mkdir $NCDF4_DIR
-    echo "Installing $PROG ..."
-    FC=$FC FFLAGS="-fPIC -heap-arrays" \
-        CFLAGS="-fPIC -I$HDF4_DIR/include -I$HDF5_DIR/include" \
-        CPPFLAGS="-fPIC -I$HDF4_DIR/include -I$HDF5_DIR/include" \
-        LDFLAGS="-L$HDF5_DIR/lib -L$HDF4_DIR/lib" ./configure \
-        --prefix=$NCDF4_DIR --disable-dap
-    if (( $TEST )); then
-        # Fails as ncdump/ctest.c is empty
-        make check
-    fi
-    make install
-    # rm -rf $EXTRACT/$PROG
+  fi
+  tar -xzf $STORE/$PROG.tar.gz
+  cd $PROG
+  [ ! -d $NCDF4_DIR ] && mkdir $NCDF4_DIR
+  echo "Installing $PROG ..."
+  FC=$FC FFLAGS="-fPIC -heap-arrays" \
+    CFLAGS="-fPIC -I$HDF4_DIR/include -I$HDF5_DIR/include" \
+    CPPFLAGS="-fPIC -I$HDF4_DIR/include -I$HDF5_DIR/include" \
+    LDFLAGS="-L$HDF5_DIR/lib -L$HDF4_DIR/lib" ./configure \
+    --prefix=$NCDF4_DIR --disable-dap
+  if (( $TEST )); then
+    # Fails as ncdump/ctest.c is empty
+    make check
+  fi
+  make install
+  # rm -rf $EXTRACT/$PROG
 fi
 export LD_LIBRARY_PATH=$NCDF4_DIR/lib:$LD_LIBRARY_PATH
 
@@ -313,24 +338,24 @@ export LD_LIBRARY_PATH=$NCDF4_DIR/lib:$LD_LIBRARY_PATH
 PROG=netcdf-fortran-4.4.4
 NCDFDIR=$INSTALL/ncdff
 if [ ! -d "$NCDFDIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    if [ ! -f $STORE/$PROG.tar.gz ]; then
-        echo "Downloading $PROG ..."
-        curl -C - -o $STORE/${PROG}.tar.gz -L https://bit.ly/2KQzRA8
+  cd $EXTRACT
+  if [ ! -f $STORE/$PROG.tar.gz ]; then
+    if test_url https://bit.ly/2KQzRA8; then
+      echo "Downloading $PROG ..."
+      curl -C - -o $STORE/${PROG}.tar.gz -L https://bit.ly/2KQzRA8
     fi
-    tar -xzf $STORE/$PROG.tar.gz
-    cd $PROG
-    [ ! -d $NCDFDIR ] && mkdir $NCDFDIR
-    echo "Installing $PROG ..."
-    FC=$FC FFLAGS="-fPIC" CFLAGS="-fPIC -I$NCDF4_DIR/include" \
-        CPPFLAGS="-fPIC -I$NCDF4_DIR/include" LDFLAGS="-L$NCDF4_DIR/lib" \
-        ./configure --prefix=$NCDFDIR
-    if (( $TEST )); then
-            # As previous
-        make check
-    fi
-    make install
-    # rm -rf $EXTRACT/$PROG
+  fi
+  tar -xzf $STORE/$PROG.tar.gz
+  cd $PROG
+  [ ! -d $NCDFDIR ] && mkdir $NCDFDIR
+  echo "Installing $PROG ..."
+  FC=$FC FFLAGS="-fPIC" CFLAGS="-fPIC -I$NCDF4_DIR/include" \
+    CPPFLAGS="-fPIC -I$NCDF4_DIR/include" LDFLAGS="-L$NCDF4_DIR/lib" \
+    ./configure --prefix=$NCDFDIR
+
+  (( $TEST )) && make check
+  make install
+  # rm -rf $EXTRACT/$PROG
 fi
 export LD_LIBRARY_PATH=$NCDFDIR/lib:$LD_LIBRARY_PATH
 
@@ -344,39 +369,38 @@ PROG=rttov-12.2
 ARCH=$FC-openmp
 RTTOV12_DIR=$INSTALL/rttov
 if [ ! -d "$RTTOV12_DIR" ] || (( $FORCE )) ; then
-    REL_PATH=`python -c "import os.path; print(os.path.relpath('$RTTOV12_DIR', '$EXTRACT/$PROG'))"`
-    mkdir -p $EXTRACT/$PROG && cd $EXTRACT/$PROG
-    if [ ! -f $STORE/$PROG.tar.gz ]; then
-        echo "Linking RTTOV source from James Hocking's archive ..."
-        ln -s /data/users/frhg/rttov122/rttov122.tar.gz $STORE/$PROG.tar.gz
-    fi
-    tar -xzf $STORE/$PROG.tar.gz
-    cd src
-    [ ! -d $RTTOV12_DIR ] && mkdir $RTTOV12_DIR
-    echo "Installing $PROG ..."
-    # Local Makefile
-    FLINE='FFLAGS_HDF5  = -D_RTTOV_HDF $(FFLAG_MOD)$(HDF5_PREFIX)/include'
-    LLINE='LDFLAGS_HDF5 = -L$(HDF5_PREFIX)/lib -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -lz'
-    sed -i.bak ../build/Makefile.local \
-        -e "s:path-to-hdf-install:$HDF5_DIR:" \
-        -e "s:# $FLINE:$FLINE:" -e "s:# $LLINE:$LLINE:"
-    ../build/Makefile.PL RTTOV_HDF=1 RTTOV_F2PY=1
+  REL_PATH=`python -c "import os.path; print(os.path.relpath('$RTTOV12_DIR', '$EXTRACT/$PROG'))"`
+  mkdir -p $EXTRACT/$PROG && cd $EXTRACT/$PROG
+  if [ ! -f $STORE/$PROG.tar.gz ]; then
+    echo "Linking RTTOV source from James Hocking's archive ..."
+    ln -s /data/users/frhg/rttov122/rttov122.tar.gz $STORE/$PROG.tar.gz
+  fi
+  tar -xzf $STORE/$PROG.tar.gz
+  cd src
+  [ ! -d $RTTOV12_DIR ] && mkdir $RTTOV12_DIR
+  echo "Installing $PROG ..."
+  # Local Makefile
+  FLINE='FFLAGS_HDF5  = -D_RTTOV_HDF $(FFLAG_MOD)$(HDF5_PREFIX)/include'
+  LLINE='LDFLAGS_HDF5 = -L$(HDF5_PREFIX)/lib -lhdf5hl_fortran -lhdf5_hl -lhdf5_fortran -lhdf5 -lz'
+  sed -i.bak ../build/Makefile.local \
+    -e "s:path-to-hdf-install:$HDF5_DIR:" \
+    -e "s:# $FLINE:$FLINE:" -e "s:# $LLINE:$LLINE:"
+  ../build/Makefile.PL RTTOV_HDF=1 RTTOV_F2PY=1
 
-    # for modern ifort compiler use -qopenmp
-    sed -i.bak ../build/arch/$ARCH \
-        -e "s:\-openmp:\-qopenmp:"
+  # for modern ifort compiler use -qopenmp
+  sed -i.bak ../build/arch/$ARCH -e "s:\-openmp:\-qopenmp:"
 
-    make ARCH=$ARCH INSTALLDIR=$REL_PATH
-    if (( $TEST )); then
-        cd ../rttov_test
-        # ulimit -s unlimited
-        ./test_fwd.sh ARCH=$ARCH BIN=$REL_PATH/bin
-        ./test_rttov12.sh ARCH=$ARCH BIN=$REL_PATH/bin
-        ./test_solar.sh ARCH=$ARCH BIN=$REL_PATH/bin
-        ./test_coef_io.sh ARCH=$ARCH BIN=$REL_PATH/bin
-        ./test_coef_io_hdf.sh ARCH=$ARCH BIN=$REL_PATH/bin
-    fi
-    # rm -rf $EXTRACT/$PROG
+  make ARCH=$ARCH INSTALLDIR=$REL_PATH
+  if (( $TEST )); then
+      cd ../rttov_test
+      # ulimit -s unlimited
+      ./test_fwd.sh ARCH=$ARCH BIN=$REL_PATH/bin
+      ./test_rttov12.sh ARCH=$ARCH BIN=$REL_PATH/bin
+      ./test_solar.sh ARCH=$ARCH BIN=$REL_PATH/bin
+      ./test_coef_io.sh ARCH=$ARCH BIN=$REL_PATH/bin
+      ./test_coef_io_hdf.sh ARCH=$ARCH BIN=$REL_PATH/bin
+  fi
+  # rm -rf $EXTRACT/$PROG
 fi
 
 # -----------------------------------------------------------------------------
@@ -386,12 +410,12 @@ fi
 PROG=seviri_util
 SEVIRI_DIR=$INSTALL/seviri_util
 if [ ! -d "$SEVIRI_DIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    echo "Downloading $PROG ..."
-    git clone https://github.com/gmcgarragh/seviri_util
-    cd $PROG
-    [ ! -d $SEVIRI_DIR ] && mkdir $SEVIRI_DIR
-    echo "Installing $PROG ..."
+  cd $EXTRACT
+  echo "Downloading $PROG ..."
+  git clone https://github.com/gmcgarragh/seviri_util
+  cd $PROG
+  [ ! -d $SEVIRI_DIR ] && mkdir $SEVIRI_DIR
+  echo "Installing $PROG ..."
 cat <<EOF > make.inc
 # C compiler and C compiler flags
 
@@ -427,10 +451,10 @@ LIBDIRS           += -L${HDF5_DIR}/lib     -L${NCDF4_DIR}/lib
 LINKS             += -lhdf5 -lnetcdf -ltiff -lm
 EOF
 
-    make all
-    cp libseviri_util.a $SEVIRI_DIR/
-    cp seviri_util.mod $SEVIRI_DIR/
-    # rm -rf $EXTRACT/$PROG
+  make all
+  cp libseviri_util.a $SEVIRI_DIR/
+  cp seviri_util.mod $SEVIRI_DIR/
+    # rm -rf  $EXTRACT/$PROG
 fi
 
 # -----------------------------------------------------------------------------
@@ -441,26 +465,28 @@ fi
 PROG=eccodes-2.8.0-Source
 ECCODES_DIR=$INSTALL/eccodes
 if [ ! -d "$ECCODES_DIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    if [ ! -f $STORE/$PROG.tar.gz ]; then
-        echo "Downloading $PROG..."
-        curl -C - -o $STORE/$PROG.tar.gz -L https://bit.ly/2lPY52u
+  cd $EXTRACT
+  if [ ! -f $STORE/$PROG.tar.gz ]; then
+    if test_url https://bit.ly/2lPY52u; then
+      echo "Downloading $PROG..."
+      curl -C - -o $STORE/$PROG.tar.gz -L https://bit.ly/2lPY52u
     fi
-    tar -xzf $STORE/$PROG.tar.gz
-    mkdir $PROG/build
-    cd $PROG/build
-    [ ! -d $ECCODES_DIR ] && mkdir $ECCODES_DIR
-    echo "Installing $PROG ..."
-    export CMAKE_PREFIX_PATH=$LD_LIBRARY_PATH
-    $CMAKE .. -DCMAKE_INSTALL_PREFIX=$ECCODES_DIR -DCMAKE_Fortran_COMPILER=$FC \
-        -DCMAKE_C_COMPILER=$CC -DENABLE_JPG=ON -DENABLE_FORTRAN=ON \
-        -DENABLE_PYTHON=OFF
-    make
-    if (( $TEST )); then
-        ctest
-    fi
-    make install
-    # rm -rf $EXTRACT/$PROG
+  fi
+  tar -xzf $STORE/$PROG.tar.gz
+  mkdir $PROG/build
+  cd $PROG/build
+  [ ! -d $ECCODES_DIR ] && mkdir $ECCODES_DIR
+  echo "Installing $PROG ..."
+  export CMAKE_PREFIX_PATH=$LD_LIBRARY_PATH
+  $CMAKE .. -DCMAKE_INSTALL_PREFIX=$ECCODES_DIR -DCMAKE_Fortran_COMPILER=$FC \
+    -DCMAKE_C_COMPILER=$CC -DENABLE_JPG=ON -DENABLE_FORTRAN=ON \
+    -DENABLE_PYTHON=OFF
+
+  make
+  (( $TEST )) && ctest
+
+  make install
+  # rm -rf $EXTRACT/$PROG
 fi
 
 
@@ -472,39 +498,41 @@ fi
 PROG=libemos-4.5.5-Source
 EMOS_DIR=$INSTALL/emos
 if [ ! -d "$EMOS_DIR" ] || (( $FORCE )) ; then
-    cd $EXTRACT
-    if [ ! -f $STORE/$PROG.tar.gz ]; then
-        echo "Downloading $PROG ..."
-        curl -C - -o $STORE/$PROG.tar.gz -L https://bit.ly/2u5xhyP
+  cd $EXTRACT
+  if [ ! -f $STORE/$PROG.tar.gz ]; then
+    if test_url https://bit.ly/2u5xhyP; then
+      echo "Downloading $PROG ..."
+      curl -C - -o $STORE/$PROG.tar.gz -L https://bit.ly/2u5xhyP
     fi
-    tar -xzf $STORE/$PROG.tar.gz
-    # Correct function which clashes with HDF-EOS
-    cd $PROG/gribex
-    mv handleLocalDefinitions.c handleLocalDefinitions.c.in
-    sed 's/init\([E(,:]\)/initemos\1/' handleLocalDefinitions.c.in \
-        > handleLocalDefinitions.c
-    mv handleLocalDefinitions.h handleLocalDefinitions.h.in
-    sed 's:init;:initemos;:' handleLocalDefinitions.h.in \
-        > handleLocalDefinitions.h
+  fi
+  tar -xzf $STORE/$PROG.tar.gz
+  # Correct function which clashes with HDF-EOS
+  cd $PROG/gribex
+  mv handleLocalDefinitions.c handleLocalDefinitions.c.in
+  sed 's/init\([E(,:]\)/initemos\1/' handleLocalDefinitions.c.in \
+    > handleLocalDefinitions.c
+  mv handleLocalDefinitions.h handleLocalDefinitions.h.in
+  sed 's:init;:initemos;:' handleLocalDefinitions.h.in \
+    > handleLocalDefinitions.h
 
-    mkdir ../build
-    cd ../build
-    [ ! -d $EMOS_DIR ] && mkdir $EMOS_DIR
-    echo "Installing $PROG ..."
-    export CMAKE_PREFIX_PATH=$LD_LIBRARY_PATH
-    # $CMAKE .. -DENABLE_GRIBEX_ABORT=OFF -DCMAKE_INSTALL_PREFIX=$EMOS_DIR \
-    #     -DECCODES_PATH=$ECCODES_DIR -DFFTW_PATH=$FFTW_DIR \
-    #     -DFFTW_USE_STATIC_LIBS=ON -DCMAKE_Fortran_COMPILER=$FC \
-    #     -DCMAKE_C_COMPILER=$CC
-    $CMAKE .. -DENABLE_GRIBEX_ABORT=OFF -DCMAKE_INSTALL_PREFIX=$EMOS_DIR \
-        -DECCODES_PATH=$ECCODES_DIR -DCMAKE_Fortran_COMPILER=$FC \
-        -DCMAKE_C_COMPILER=$CC
-    make
-    if (( $TEST )); then
-        make test
-    fi
-    make install
-    # rm -rf $EXTRACT/$PROG
+  mkdir ../build
+  cd ../build
+  [ ! -d $EMOS_DIR ] && mkdir $EMOS_DIR
+  echo "Installing $PROG ..."
+  export CMAKE_PREFIX_PATH=$LD_LIBRARY_PATH
+  # $CMAKE .. -DENABLE_GRIBEX_ABORT=OFF -DCMAKE_INSTALL_PREFIX=$EMOS_DIR \
+  #     -DECCODES_PATH=$ECCODES_DIR -DFFTW_PATH=$FFTW_DIR \
+  #     -DFFTW_USE_STATIC_LIBS=ON -DCMAKE_Fortran_COMPILER=$FC \
+  #     -DCMAKE_C_COMPILER=$CC
+  $CMAKE .. -DENABLE_GRIBEX_ABORT=OFF -DCMAKE_INSTALL_PREFIX=$EMOS_DIR \
+    -DECCODES_PATH=$ECCODES_DIR -DCMAKE_Fortran_COMPILER=$FC \
+    -DCMAKE_C_COMPILER=$CC
+
+  make
+  (( $TEST )) && make test
+
+  make install
+  # rm -rf $EXTRACT/$PROG
 fi
 
 # -----------------------------------------------------------------------------

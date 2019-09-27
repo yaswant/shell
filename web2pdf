@@ -28,7 +28,12 @@ webf=$(basename $1)
 TMP_HTML="$webf"
 OUT_PDF="${webf%.*}.pdf"
 
+[[ -f "$TMP_HTML" ]] && TMP_HTML=tmp_"$webf"
 [[ $# -ge 2 ]] && OUT_PDF=$2
+if [[ -f "$OUT_PDF" ]]; then
+  read -rp "A file $OUT_PDF already exists in path. Overwrite [y|n]? " opt
+  [[ "$opt" != y ]] && exit
+fi
 
 
 ## html2ps (1.0b5) cant deal with a) secure protocols, b) limited encoding opts

@@ -1,0 +1,11 @@
+#!/bin/bash -e
+# Remove directory quickly
+
+rm_dir=${1:?"Directory not specified."}
+tmp_dir=$(mktemp -d -t rmd-XXXXX)
+for i in "$@"; do
+  printf "%s" "removing $i .."
+  rsync -a --delete "${tmp_dir}/" "${i}/" && rm -rf "$i"
+  printf "done.\n"
+done
+rm -rf "$tmp_dir"

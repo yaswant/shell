@@ -1,14 +1,24 @@
 #!/bin/bash
-# Down-scale colour PDF to grey.
+# Downscale colour PDF to grayscale.
+# pdf2gray file1.pdf [file2.pdf] [file3.pdf] ... [filen.pdf]
 #
-# yaswant.pradhan
+# June 2019. yaswant.pradhan
 # -----------------------------------------------------------------------------
-infile="$1"
-outfile="${infile%.*}-gray.pdf"
+infile=${1?:"Missing pdf file(s)"}
+status=0
+errfile=()
+for infile in "$@"; do
+  if [ ! -f "$infile" ]; then
+    echo "$infile: No such file"
+    errfile+=("$infile")
+    ((status++))
+    continue
+  fi
+  outfile="${infile%.*}-gray.pdf"
+  printf "%s -> %s\n" "$infile" "$outfile"
 
-echo "$infile -> $outfile"
-
-gs \
+  # convert to ebook format
+  gs \
   -sDEVICE=pdfwrite \
   -dCompatibilityLevel=1.4 \
   -sColorConversionStrategy=Gray \
@@ -21,3 +31,10 @@ gs \
   -dDetectDuplicateImages \
   -sOutputFile="$outfile" \
   "$infile"
+done
+
+# report any error
+if [[ "$status" -gt 0 ]]; then
+  printf "\nUnable to apply conversion to the following file(s):\n"
+  printf "%s\n" "${errfile[@]}" | nl
+fi

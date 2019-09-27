@@ -1,0 +1,6 @@
+cat <<EOF
+Status: $(cat /sys/class/power_supply/BAT0/status)
+Cycle: $(cat /sys/class/power_supply/BAT0/cycle_count)
+Alarm: $(cat /sys/class/power_supply/BAT0/alarm)
+EOF
+

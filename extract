@@ -45,7 +45,7 @@ if [ -f "$1" ]; then
         tar xvjf "$1"
         ;;
     *.tar.gz | *.tgz)
-        tar xf "$1" -I /usr/bin/pigz --totals
+        tar xvf "$1" -I /usr/bin/pigz --totals
         ;;
     *.tar | *.pax | *.tar.xz)
         tar xvf "$1"

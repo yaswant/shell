@@ -1,11 +1,17 @@
 #!/bin/bash -e
 # Remove directory quickly
 
-rm_dir=${1:?"Directory not specified."}
+[[ -e "$1" ]] || { echo "[ERROR  ] Invalid directory: $1"; exit 1; }
 tmp_dir=$(mktemp -d -t rmd-XXXXX)
-for i in "$@"; do
-  printf "%s" "removing $i .."
-  rsync -a --delete "${tmp_dir}/" "${i}/" && rm -rf "$i"
-  printf "done.\n"
+
+for i in $(printf "%s\n" "$@"|sort|uniq); do
+  [ -f "$i" ] && { echo "[WARNING] File not deleted: $i"; continue; }
+  if [ -d "$i" ]; then
+    printf "%s" "removing ${i}.. "
+    rsync -aq --delete "${tmp_dir}/" "${i}/" && rm -rf "$i"
+    printf "done.\n"
+  else
+    echo "[WARNING] Dir not found: $i"
+  fi
 done
 rm -rf "$tmp_dir"

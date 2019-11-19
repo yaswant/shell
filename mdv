@@ -1,0 +1,17 @@
+#!/bin/bash
+# mdv FILES DESTINATION
+# make destination directory (if required) and move content to it
+# yaswant.pradhan 14-10-2014
+
+[[ $# -eq 0 ]] && echo " syntax: ${0##*/} FILES DESTINATION" && exit 0
+
+NF=$(($# - 1))                      # Number of files to move
+FILES=("${@:1:$NF}")                  # Parsed file names
+DEST="${*: -1}"                     # Destination directory
+
+printf "%s\n" "${FILES[@]}"
+# Create directory if required
+mkdir -p "$DEST" || exit $?
+
+# Move files to directory
+mv "${FILES[@]}" "$DEST" || exit $?

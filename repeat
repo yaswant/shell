@@ -1,0 +1,67 @@
+#!/bin/bash -e
+
+# Activate debug mode
+if [[ "$DEBUG" ]]; then
+  PS4='L${LINENO}: '
+  set -x
+fi
+
+
+# ----------------------------------------------------------------------------
+OPTS=$(getopt -o c:n:hv --long string:,wide:,version \
+              -n "${0##*/}" -- "$@") \
+              || { echo "Terminating..." >&2; exit 1; }
+eval set -- "$OPTS"
+
+version(){
+cat<<EOF
+${0##*/} 2019.06.1
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Yaswant Pradhan.
+EOF
+}
+
+usage(){
+cat<<EOF
+${0##*/} Repeat a character (or string) n times.
+
+Usage: ${0##*/} [OPTION]
+
+Options:
+  -c, --string[=VALUE]  char/string to repeat (default '-')
+  -n, --wide[=VALUE]    number of times to repeat (default 80)
+  -h, --help            print this help and exit
+  -v, --version         print version and exit
+
+Examples:
+    repeat x 80
+    repeat 'abc ' 10
+    repeat -c '\/' -n 5
+
+Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+
+EOF
+}
+# ----------------------------------------------------------------------------
+
+while true; do
+  case "$1" in
+    -c |--char)     c="$2"; shift 2 ;;
+    -n |--wide)     n="$2"; shift 2 ;;
+    -h |--help )    usage; exit 0 ;;
+    -v |--version ) version; exit 0 ;;
+    -- )            shift; break ;;
+    * )             break ;;
+  esac
+done
+c=${c:-${1:-'-'}}
+n=${n:-${2:-80}}
+# single character repeat
+# printf "%${n}s\n" | tr " " "$c"
+
+# multi-character repeat
+str=$(printf "%${n}s")
+printf "%s\n" "${str// /$c}"

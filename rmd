@@ -1,17 +1,24 @@
-#!/bin/bash -e
+#!/bin/bash
 # Remove directory quickly
+# yaswant.pradhan
+# -----------------------------------------------------------------------------
 
-[[ -e "$1" ]] || { echo "[ERROR  ] Invalid directory: $1"; exit 1; }
-tmp_dir=$(mktemp -d -t rmd-XXXXX)
+[[ -e "$1" ]] || { echo "$1: No such directory"; exit 1; }
+empty_dir=$(mktemp -d -t rmd-XXXXX)
 
-for i in $(printf "%s\n" "$@"|sort|uniq); do
-  [ -f "$i" ] && { echo "[WARNING] File not deleted: $i"; continue; }
-  if [ -d "$i" ]; then
-    printf "%s" "removing ${i}.. "
-    rsync -aq --delete "${tmp_dir}/" "${i}/" && rm -rf "$i"
+# parse directory array from input arguments
+mapfile -t dirs < <(printf "%s\n" "$@")
+
+for dir in "${dirs[@]}"; do
+  [ -f "$dir" ] && { echo "[WARNING] File not deleted: $dir"; continue; }
+  if [ -d "$dir" ]; then
+    printf "removing %s.. " "$dir"
+    rsync -aq --delete "${empty_dir}/" "${dir}/" && rm -rf "$dir"
     printf "done.\n"
   else
-    echo "[WARNING] Dir not found: $i"
+    echo "[WARNING] $dir: No such directory"
   fi
 done
-rm -rf "$tmp_dir"
+
+#  clean-up tmp directory
+rm -rf "$empty_dir"

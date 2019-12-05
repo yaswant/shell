@@ -51,7 +51,7 @@ EOF
 while getopts "h:v" OPTION
 do
   case $OPTION in
-    h)  usage; 
+    h)  usage;
         exit 1 ;;
     v)  echo -e "\n$0 version $version\n"
 	    exit   ;;

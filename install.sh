@@ -1,11 +1,11 @@
-#!/usr/bin/env shi
+#!/usr/bin/env sh
 # install ysh
 # yaswant.pradhan
 set -e
 #TODO: update ysh library install script
 
 PREFIX="${1:-${HOME}/ysh}"
-mkdir -p "$PREFIX"
+mkdir -p "$PREFIX" || exit 1
 cp * "$PREFIX"
 
 # get login shell

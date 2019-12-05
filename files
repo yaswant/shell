@@ -33,13 +33,16 @@ ${BLDON}OPTIONS${BLDOF}
         Do not follow symbolic links, except while processing the command line
         arguments.
 
-    -k --keep
+    -k, --keep
         Keep log file (recorded as /tmp/__files.log)
 
-    -gt --bigger n[cwbkMG]
+    -bt, --size-between n[cwbkMG] n[cwbkMG]
+        Find files with size between specific units (see bleow).
+
+    -gt, --size-bigger n[cwbkMG]
         Find files larger than this unit (see bleow).
 
-    -lt --smaller n[cwbkMG]
+    -lt, --size-smaller n[cwbkMG]
         Find files smaller than this unit (see bleow).
 
         The following suffixes can be used with -gt and -lt options:
@@ -56,13 +59,13 @@ ${BLDON}OPTIONS${BLDOF}
         differently. The 'b' suffix always denotes 512-byte blocks and
         never 1 Kilobyte blocks, which is different to the behaviour of -ls.
 
-    -ot --older n
+    -ot, --older-than n
         File's data was last modified n minutes ago.
 
-    -nt --newer n
+    -nt, --newer-than n
         File's data was last modified since last n minutes.
 
-    -del
+    -del, --delete
         Delete files matching the search options.
 
     PATH
@@ -119,10 +122,11 @@ while [[ $1 == -* ]]; do
         -k|--keep) KEEP="True"; shift 1;;
         -L) LOPT="$LOPT -L"; shift 1;;
         -H) LOPT="$LOPT -H"; shift 1;;
-        -gt|--bigger) OPT="$OPT -size +$2"; shift 2;;
-        -lt|--smaller) OPT="$OPT -size -$2"; shift 2;;
-        -ot|--older) OPT="$OPT -mmin +$2"; shift 2;;
-        -nt|--newer) OPT="$OPT -mmin -$2"; shift 2;;
+        -bt|--size-between) OPT="$OPT -size +$2 -size -$3"; shift 3;;
+        -gt|--size-bigger) OPT="$OPT -size +$2"; shift 2;;
+        -lt|--size-smaller) OPT="$OPT -size -$2"; shift 2;;
+        -ot|--older-than) OPT="$OPT -mmin +$2"; shift 2;;
+        -nt|--newer-than) OPT="$OPT -mmin -$2"; shift 2;;
         -del|--delete) DEL=" -delete"; shift 1;;
         --) shift; break;;
         -*) echo "invalid option: $1" 1>&2; usage; exit 1;;
@@ -139,11 +143,11 @@ SPATH=$1
 # Print files with search criteria:
 if [[ $# -le 1 ]]; then
     # echo "find $LOPT $SPATH $OPT -exec du --apparent -sh {} \;"
-    find $LOPT "$SPATH" $OPT -exec du --apparent-size -sh {} \; \
+    find $LOPT "$SPATH" $OPT -exec du --apparent -sh {} + \
     | sort -h \
     | tee $LOG
 else
-    find $LOPT "$@" $OPT -exec du --apparent-size -sh {} \; \
+    find $LOPT "$@" $OPT -exec du --apparent -sh {} + \
     | sort -h \
     | tee $LOG
 fi

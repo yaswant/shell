@@ -8,7 +8,7 @@ fi
 
 
 # ----------------------------------------------------------------------------
-OPTS=$(getopt -o c:n:hv --long string:,wide:,version \
+OPTS=$(getopt -o c:w:hv --long character:,width:,version \
               -n "${0##*/}" -- "$@") \
               || { echo "Terminating..." >&2; exit 1; }
 eval set -- "$OPTS"
@@ -31,7 +31,7 @@ ${0##*/} Repeat a character (or string) n times.
 Usage: ${0##*/} [OPTION]
 
 Options:
-  -c, --string[=VALUE]  char/string to repeat (default '-')
+  -c, --character[=VALUE]  char/string to repeat (default '-')
   -n, --wide[=VALUE]    number of times to repeat (default 80)
   -h, --help            print this help and exit
   -v, --version         print version and exit
@@ -49,12 +49,12 @@ EOF
 
 while true; do
   case "$1" in
-    -c |--char)     c="$2"; shift 2 ;;
-    -n |--wide)     n="$2"; shift 2 ;;
-    -h |--help )    usage; exit 0 ;;
-    -v |--version ) version; exit 0 ;;
-    -- )            shift; break ;;
-    * )             break ;;
+    -c |--character)  c="$2"; shift 2 ;;
+    -w |--width)      n="$2"; shift 2 ;;
+    -h |--help )      usage; exit 0 ;;
+    -v |--version )   version; exit 0 ;;
+    -- )              shift; break ;;
+    * )               break ;;
   esac
 done
 c=${c:-${1:-'-'}}

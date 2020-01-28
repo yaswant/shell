@@ -22,6 +22,7 @@
 #           users sharing same path at same time which may result permission
 #           error. YP.
 # May 2019  PDF to grey PDF.
+# Jan 2020  joinpdf depends on joinpdf script to avoid single dependency iof pdftk
 # ----------------------------------------------------------------------------
 set -e
 
@@ -285,8 +286,8 @@ else
 fi
 
 ## Copy or extract selected pages to a temporary PS file ---------------------
-if (( extract == 1 )); then
-  psselect "$PSOPT1" -q "$FILE" "$TMPS1"
+if (( extract )); then
+  psselect $PSOPT1 -q "$FILE" "$TMPS1"
 else
   cp "$FILE" "$TMPS1"
 fi
@@ -314,7 +315,8 @@ pnum=
 while (( PAGE <= NPAGES )); do
   ## Select ps pages and write to temp file --------------------------------
   # [[ $NPAGES -gt 1 ]] && pnum="-$(printf '%s %s' $Z $PAGE)"
-  (( NPAGES > 1 )) && pnum="-$(printf '%s %s' $Z $PAGE)"
+  #(( NPAGES > 1 )) && pnum="-$(printf '%s %s' $Z $PAGE)"
+  (( NPAGES > 1 )) && pnum="-$(printf $Z $PAGE)"
   psselect $PSOPT2 -p$PAGE "$TMPS1" "$TMPS2"
 
   if [[ $OFMT == pdf ]]; then
@@ -368,7 +370,9 @@ while (( PAGE <= NPAGES )); do
 
     if [[ $OFMT = pdf ]] && [[ $PDFJOIN = T ]] ; then
       echo -e "INFO: Joining PDF pages.. \c"
-      pdftk "$pdfPages" cat output "${OUTFILE}.${OFMT}"
+     # pdftk "$pdfPages" cat output "${OUTFILE}.${OFMT}"
+      joinpdf "$pdfPages" "${OUTFILE}.${OFMT}"
+
       echo -e "done."
       rm -f ${OUTFILE}-*.${OFMT}
     fi

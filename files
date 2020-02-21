@@ -145,14 +145,14 @@ if [[ $# -le 1 ]]; then
     # echo "find $LOPT $SPATH $OPT -exec du --apparent -sh {} \;"
     find $LOPT "$SPATH" $OPT -exec du --apparent -sh {} + \
     | sort -h \
-    | tee $LOG
+    | tee "$LOG"
 else
     find $LOPT "$@" $OPT -exec du --apparent -sh {} + \
     | sort -h \
-    | tee $LOG
+    | tee "$LOG"
 fi
 
-nf=$(wc -l < $LOG)
+nf=$(wc -l < "$LOG")
 [[ $nf -gt 1 ]] && s='s'
 [[ $nf -eq 0 ]] && echo -e "No match.\n" && rm $LOG && exit 0
 
@@ -168,11 +168,11 @@ echo -e "\nTotal\t$nf File$s"
 if [ -n "$DEL" ]; then
     # echo -e ">> Delete these file$s? (y|n): \c"; read -r x
     read -rp ">> Delete these file$s? (y|n): " x
-    [[ $x = 'y' ]] && rm $(cut -f 2 $LOG) && echo -e "   File$s deleted." #m1
+    [[ $x = 'y' ]] && rm $(cut -f 2 "$LOG") && echo -e "   File$s deleted." #m1
 #   [[ $x = 'y' ]] && rm $(cat $LOG |tr '\t' ',' |cut -d',' -f2)          #m2
 #   [[ $x = 'y' ]] && find $LOPT "$SPATH" $OPT $DEL                      #m3
 fi
 
 
 # Clean-up (Remove log file) --------------------------------------------------
-[ -f $LOG ] && [ -z "$KEEP" ] && rm $LOG
+[ -z "$KEEP" ] && rm -f "$LOG"

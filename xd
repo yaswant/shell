@@ -1,0 +1,15 @@
+#!/bin/bash
+# xd
+# check difference between 2 or 3 files. if 2 directories are given then xd
+# will do a recursive diff ignoring files in .svn directories
+# yaswant.pradhan
+
+
+[[ $# -lt 2 || $# -gt 3 ]] \
+&& echo -e "usage: ${0##*/} File1|Dir1 File2|Dir2 [File3]\n" && exit
+command -v xxdiff >/dev/null 2>&1 || { echo "xxdiff not found" && exit 1; }
+
+if [[ $# -eq 3 ]]; then xxdiff "$@" &
+else
+  xxdiff -r -e '.svn' -e '.git' "$1" "$2" &
+fi

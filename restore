@@ -1,49 +1,60 @@
 #!/bin/bash
 # syntax:
-#   restore filepath [snapshot]
+#   restore [file|dirname] [snapshot]
 #
-# restore files/dirs from snapshots (Limited to data in $HOME only)
+# restore files/directories from snapshots (limited to data in $HOME only)
 # yaswant.pradhan 2014/15
 # -----------------------------------------------------------------------------
-rootdir=$(readlink -f $HOME)
-SNAPSHOTDIR=$rootdir/.snapshot
-rspoint=${2:-'hourly.0'}
+rootdir=$(readlink -f "$HOME")
+SNAPSHOTDIR=${rootdir}/.snapshot
+LAST="$(/bin/ls -t1 "$SNAPSHOTDIR" | head -n 1)"  # most recent restore point
+recent=${2:-$LAST}                                # parse recent rsp argument
+snapshots=($(/bin/ls -t1 "$SNAPSHOTDIR"))         # all available snapshots
 
-function line(){ for i in {1..80}; do echo -e '-\c'; done; echo ""; }
-function usage()
-{
+list_all(){
 more << EOF
-$(basename $0) file[dir]name [snapshot]
----------------------
- Available snapshots
----------------------
-$(ls -lt $SNAPSHOTDIR |tail -n+2 |\
-  awk '{printf"%10s   @%6s on %s-%s\n", $9,$8,$7,$6}')
+---------------------------------------------
+            Available snapshots
+---------------------------------------------
+$(/bin/ls -lt "$SNAPSHOTDIR" | tail -n+2 | nl | \
+  awk '{printf"%2s  %-22s  @%6s on %s-%s\n", $1, $10,$9,$8,$7}')
+---------------------------------------------
+
 EOF
 }
+usage(){ echo "usage: ${0##*/} file|dirname [snapshot]"; list_all; }
 # -----------------------------------------------------------------------------
 
 [[ "$#" -lt 1 ]] && usage && exit
 
-# Parse file path
-fpath=$(readlink -f $1)      # Full paths of File/Directory to be restored
+
+# -- parse file path
+fpath=$(readlink -f "$1")   # Full paths of File/Directory to be restored
 rpath=${fpath#$rootdir/}    # Path relative to $HOME
 
-if [ ! -e "$SNAPSHOTDIR/$rspoint" ]; then
-    echo "** $SNAPSHOTDIR/$rspoint doesnot not exist **"
-    echo "Select a snapshot directory to restore:"
-    line; ls -t $SNAPSHOTDIR && line || exit $?
-    read rspoint
-fi
-snapfile="$SNAPSHOTDIR/$rspoint/$rpath"
-
-
-if [ -e "$snapfile" ]; then echo "Restoring from $rspoint"
+if [ -e "${SNAPSHOTDIR}/${recent}" ]; then
+  list_all;
+  snapfile="${SNAPSHOTDIR}/${recent}/${rpath}"
 else
-    echo "$rpath not found in $rspoint"
-    exit 1
+  echo -e "** ERROR: ${SNAPSHOTDIR}/${recent} doesn't not exist **\n"
+  list_all;
+
+  read -rp "Please select a snapshot 'id' to restore ('0' to exit): " _id
+  (( _id == 0 )) && { echo "Aborted."; exit; }
+  (( _id-- ))
+  snapfile="${SNAPSHOTDIR}/${snapshots[$_id]}/${rpath}"
 fi
 
-echo "[command] rsync -avi --delete $snapfile $(dirname $fpath)"
-read -ep "WARN! Once restored, this cannot be reverted - Do you want to continue? y|[n]: " yn
-[[ "$yn" == 'y' ]] && rsync -avi --delete $snapfile $(dirname $fpath)
+
+# -- check existence of file in snapshot
+[ -e "$snapfile" ] || { echo "$snapfile: No such file or directory"; exit 2; }
+
+
+# -- begin restore
+echo "Confirm restore from: $snapfile"
+# echo "[command] rsync -aiLt --delete $snapfile $(dirname $fpath)"
+read -rp "** Once restored, this cannot be undone. Continue y|(n)? " ans
+
+[[ $(tr '[:lower:]' '[:upper:]' <<<"$ans") == 'Y' ]] \
+&& rsync -ait --delete "$snapfile" "${fpath%/*}" \
+|| echo "Aborted."

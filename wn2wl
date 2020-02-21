@@ -1,0 +1,10 @@
+#!/bin/bash
+# wn2wl wavenumber in cm-1
+# returns wavelength in um
+# yaswant.pradhan
+
+[[ $# -eq 0 ]] && echo "usage: $(basename $0) wavenumber_in_cm-1" && exit 1
+for i in $@; do
+    echo $i |awk '{printf "%g ", 1/$1*10e3}'
+done
+echo

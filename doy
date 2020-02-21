@@ -48,18 +48,25 @@ Examples:
 EOF
 }
 
-while getopts "h:v" OPTION
-do
-  case $OPTION in
-    h)  usage;
-        exit 1 ;;
-    v)  echo -e "\n$0 version $version\n"
-	    exit   ;;
-    ?)  usage;
-        exit   ;;
-  esac
+#------------------------------------------------------------------------------
+# Parse arguments
+#------------------------------------------------------------------------------
+while [[ $1 == -* ]]; do
+    case $1 in
+	    -v|--version)
+	        echo -e "\n${0##*/}: v-$version\n"
+	        shift 1 ;;
+
+        -h|--help|-?|*)
+            usage
+	        exit ;;
+    esac
 done
 
+
+#------------------------------------------------------------------------------
+# Parse input date and return doy
+#------------------------------------------------------------------------------
 case $# in
     0)  # Current system doy
         date +'%j'; exit $?;;

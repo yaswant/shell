@@ -32,28 +32,50 @@ EOF
 }
 usage(){
 cat<<EOF
-${0##*/} search and remove empty files or broken links.
+Search and remove empty files or broken links.
 
 Usage: ${0##*/} [OPTION] [PATH]
 
 PATH  search path (def: current working directory)
 
 Options:
-      -atime n          search and remove files which were last accessed n days ago. n, +n and -n indicate exactly, more than and less than n days ago, respectively
-      -ctime n          search and remove files which were last changed n days ago. n, +n and -n indicate exactly, more than and less than n days ago, respectively
-      -mtime n          search and remove files which are last modified n days ago. n, +n and -n indicate exactly, more than and less than n days ago, respectively
-      -daystart         measure times (for -atime, -ctime and -mtime) from the beginning of today rather than from 24 hours ago
+      -atime n          search and remove files which were last accessed n days
+                        ago. n, +n and -n indicate exactly, more than and less
+                        than n days ago, respectively
+
+      -ctime n          search and remove files which were last changed n days
+                        ago. n, +n and -n indicate exactly, more than and less
+                        than n days ago, respectively
+
+      -mtime n          search and remove files which are last modified n days
+                        ago. n, +n and -n indicate exactly, more than and less
+                        than n days ago, respectively
+
+      -daystart         measure times (for -atime, -ctime and -mtime) from the
+                        beginning of today rather than from 24 hours ago
+
   -d, --dir             search (and remove) directories only
+
   -f, --file            search (and remove) files only
-  -i, --ignore pattern  do not delete empty files matching pattern, which may be needed (eg __init__.py)
-  -l, --levels n        descend to n levels (non negative integer)
-  -n, --dry-run         dry run or Print-only mode. This is used as default if <path> is not present
-  -V, --verb            switch to verbose mode i.e. list deleted files
-  -x, --broken-link            search and remove broken links only
-  -v, --version         print version and exit
+
   -h, --help            print this help and exit
 
-Report bugs to <yaswant.pradhan>
+  -i, --ignore pattern  do not delete empty files matching pattern, which may
+                        be needed (eg __init__.py)
+
+  -l, --levels n        descend to n levels (non negative integer)
+
+  -n, --dry-run         dry run or Print-only mode. This is used as default if
+                        <path> is not present
+
+  -v, --verbose         switch to verbose mode i.e. list deleted files
+
+  -V, --version         print version and exit
+
+  -x, --broken-link     search and remove broken links only
+
+Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+
 EOF
 }
 
@@ -66,33 +88,47 @@ TAG='files and directories'
 while [[ $1 == -* ]]; do
   case $1 in
     -atime)
-          OPT="$OPT -atime $2"; shift 2 ;;
+          OPT="$OPT -atime $2"; shift 2
+          ;;
     -ctime)
-          OPT="$OPT -ctime $2"; shift 2 ;;
+          OPT="$OPT -ctime $2"; shift 2
+          ;;
     -daystart)
-          OPT="$OPT -daystart"; shift 1 ;;
+          OPT="$OPT -daystart"; shift 1
+          ;;
     -d|--dir)
-          TAG='empty directories'; OPT="$OPT -type d"; shift 1 ;;
+          TAG='empty directories'; OPT="$OPT -type d"; shift 1
+          ;;
     -f|--file)
-          TAG='empty files'; OPT="$OPT -type f"; shift 1 ;;
-    -i|--ignore)
-          OPT="$OPT ! -name $2"; shift 2 ;;
-    -l|--level)
-          LEV=" -maxdepth $2"; shift 2 ;;
-    -n|--dry-run)
-          DRY_RUN=1; shift 1 ;;
-    -mtime)
-          OPT="$OPT -mtime $2"; shift 2 ;;
-    -V|--verb)
-          OPT2="$OPT2 -print"; shift 1 ;;
-    -v|--version)
-          version; exit 0 ;;
-    -x|--broken-link)
-          TAG='broken links'; OPT="$OPT -xtype l"; shift 1 ;;
-    --)
-          shift; break ;;
+          TAG='empty files'; OPT="$OPT -type f"; shift 1
+          ;;
     -h|--help)
-          usage; exit 0 ;;
+          usage; exit 0
+          ;;
+    -i|--ignore)
+          OPT="$OPT ! -name $2"; shift 2
+          ;;
+    -l|--level)
+          LEV=" -maxdepth $2"; shift 2
+          ;;
+    -n|--dry-run)
+          DRY_RUN=1; shift 1
+          ;;
+    -mtime)
+          OPT="$OPT -mtime $2"; shift 2
+          ;;
+    -v|--verbose)
+          OPT2="$OPT2 -print"; shift 1
+          ;;
+    -V|--version)
+          version; exit 0
+          ;;
+    -x|--broken-link)
+          TAG='broken links'; OPT="$OPT -xtype l"; shift 1
+          ;;
+    --)
+          shift; break
+          ;;
     -*) echo "invalid option: $1" 1>&2; usage; exit 1;;
   esac
 done

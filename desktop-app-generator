@@ -1,0 +1,162 @@
+#!/bin/bash
+#
+# History:
+# 2019.05 beta release.
+# 2019.10 allow user to type in custom commands.
+#         update application categories.
+#
+vsn=2019.10
+
+# ----------------------------------------------------------------------------
+OPTS=$(getopt -o hv --long help,version -n "${0##*/}" -- "$@") \
+              || { echo "Terminating..." >&2; exit 1; }
+eval set -- "$OPTS"
+
+version(){
+cat<<EOF
+${0##*/} $vsn
+
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Written by Yaswant Pradhan.
+EOF
+}
+
+usage(){
+cat<<EOF
+Generate GNOME desktop application launcher.
+
+Usage: ${0##*/} [OPTION]
+
+Options:
+  -h, --help        print this help and exit
+  -v, --version     print version and exit
+
+GUI Options:
+  See https://developer.gnome.org/desktop-entry-spec for detailed desktop entry specs.
+
+  Filename          Name of the desktop launcher filename. default: newapp.desktop
+  Type              Type of desktop entry: Application (type 1)
+  Name              Specific name of the application, for example "MyFunkyApp"
+  Version           Version of the Desktop Entry Specification that the desktop entry conforms with.
+                    Entries that confirm with this version of the specification should use 1.0.
+  Comment           Tooltip for the entry, for example "Does Funky things.."
+  Command           Program to execute, possibly with arguments
+  Optional Args     %f -  A single file name, even if multiple files are selected.
+                          The system reading the desktop entry should recognize that the program
+                          in question cannot handle multiple file arguments, and it should should
+                          probably spawn and execute multiple copies of a program for each selected
+                          file if the program is not able to handle additional file arguments.
+                          If files are not on the local file system (i.e. are on HTTP or FTP
+                          locations), the files will be copied to the local file system and
+                          %f will be expanded to point at the temporary file. Used for programs
+                          that do not understand the URL syntax.
+                    %F -  A list of files. Use for apps that can open several local files at once.
+                          Each file is passed as a separate argument to the executable program.
+                    %u -  A single URL. Local files may either be passed as file: URLs or as file path.
+                    %U -  A list of URLs. Each URL is passed as a separate argument to the executable
+                          program. Local files may either be passed as file: URLs or as file path.
+                    %c -  The translated name of the application as listed in the appropriate Name key
+                          in the desktop entry.
+                    %k -  The location of the desktop file as either a URI (if for example gotten from
+                          the vfolder system) or a local filename or empty if no location is known.
+  Icon              Icon to display in file manager, menus, etc. If the name is an absolute path,
+                    the given file will be used
+  Caregory          Categories in which the entry should be shown in a menu (for possible values
+                    see http://www.freedesktop.org/Standards/menu-spec)
+  In terminal       If selected, the program will run in a terminal window
+  Install for user  If selected, the application will be installed in user
+                    ~/.local/share/applications directory so that it is discoverable from GNOME menu
+
+Report bugs to <yaswant.pradhan@metoffice.gov.uk>
+
+EOF
+}
+
+while true; do
+  case "$1" in
+    -h |--help )    usage; exit 0 ;;
+    -v |--version ) version; exit 0 ;;
+    -- )            shift; break ;;
+    * )             break ;;
+  esac
+done
+# ----------------------------------------------------------------------------
+
+
+command -v yad 1>/dev/null || { echo "yad: command not found" && exit 127; }
+
+# \nSee https://developer.gnome.org/desktop-entry-spec/" --show-uri
+  # --text="<i>Edit fields below to create and install a custom desktop launcher</i>\nhttps://developer.gnome.org/desktop-entry-spec" \
+
+# collect form data
+data=$(yad --title="Desktop Entry Generator $vsn" --width=450 --posx=10 --posy=10 \
+  --text-align=center --show-uri\
+  --form --align=right \
+  --field=" Filename" "newapp.desktop" \
+  --field=" Type:RO" "Application" \
+  --field=" Name" "LauncherName" \
+  --field=" Version" "1.0" \
+  --field=" Comment" "Generate and install desktop application launcher" \
+  --field=" Command" "$HOME/bin/" \
+  --field=" Optional Args:CB" "!%f!%F!%u!%U!%c!%k" \
+  --field=" Icon:FL" "/usr/share/icons/hicolor/48x48/apps/system-logo-icon.png" \
+  --field=" Categories:CBE" "Utility!AudioVideo!Development!Education!Game!Graphics!Network!Office!Science!Settings!System" \
+  --field=" In terminal:CHK" FALSE \
+  --field=" Install for user: ${USER}:CHK" FALSE)
+ret=$?
+[[ "$ret" -eq 1 || "$ret" -eq 252 ]] && { echo "Cancelled"; exit $ret; }
+
+
+# retrieve fields array
+IFS='|' read -ra fields <<< "$data"
+
+
+# validate command
+exe="${fields[5]%% *}"
+if command -v "$exe" &>/dev/null; then :
+else
+  yad --image dialog-error --title 'Error' \
+      --text "<b> ${exe}: command not found</b>\n\nPlease try again and input a valid Command" \
+      --width=450 --posx=10 --posy=10 \
+      --button=gtk-cancel:127
+  exit $?
+fi
+
+
+# parse application file path
+if [[ ${fields[10]} = TRUE ]]; then
+  filepath="${HOME}/.local/share/applications/${fields[0]}"
+  mkdir -p "${filepath%/*}"
+else
+  filepath="${fields[0]}"
+fi
+
+# prompt overwrite
+overwrite=0
+if [ -f "$filepath" ]; then
+  yad --image dialog-question \
+      --title Overwite --width=450 --posx=10 --posy=10 \
+      --button=gtk-no:1 \
+      --button=gtk-yes:0 \
+      --text "<b> ${filepath##*/} exists</b>\n\n Overwrite file?"
+  overwrite=$?
+fi
+
+# write desktop entry file
+(( overwrite == 0 )) && \
+cat > "$filepath" <<EOF
+[Desktop Entry]
+Type=${fields[1]}
+Name=${fields[2]}
+Version=${fields[3]}
+Comment=${fields[4]}
+Exec=${fields[5]} ${fields[6]}
+Icon=${fields[7]}
+Terminal=${fields[9],,}
+Categories=${fields[8]}
+EOF
+
+# make the app executable
+[ -f "$filepath" ] && chmod +x "$filepath"

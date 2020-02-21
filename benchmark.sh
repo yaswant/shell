@@ -13,7 +13,7 @@ cat<<EOF
 Benchmark runner
 Note: Requires sudo to clear filesystem memory cache
 
-Usage: ${0##*/} [OPTION] COMMAND
+Usage: ${0##*/} [OPTION] COMMAND|SCRIPT
 
 Options:
 

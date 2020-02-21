@@ -18,8 +18,8 @@ NDASH=20        # number of progress indicators
 
 # Add progress indicator
 # tar cf $arch_name -I /usr/bin/pigz --checkpoint=.1000 --totals $1
-
-BLOCKS=$(du -sB $BLOCKSIZE --apparent-size "$dir_name" | cut -f 1)
+# echo "$dir_name"
+BLOCKS=$(du -sB $BLOCKSIZE --apparent-size "$1" | cut -f 1)
 CHECKPOINT=$(( BLOCKS/NDASH ))
 
 printf 'Num Blocks: %s\t' "$BLOCKS"

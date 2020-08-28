@@ -8,7 +8,7 @@ fi
 
 
 # ----------------------------------------------------------------------------
-OPTS=$(getopt -o c:w:hv --long character:,width:,version \
+OPTS=$(getopt -o c:w:hv --long character:,width:,help,version \
               -n "${0##*/}" -- "$@") \
               || { echo "Terminating..." >&2; exit 1; }
 eval set -- "$OPTS"

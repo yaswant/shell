@@ -1,0 +1,85 @@
+#!/bin/bash -e
+# ----------------------------------------------------------------------------
+OPTS=$(getopt -o f:hv -l format:,help,version \
+       -n "${0##*/}" -- "$@") || { echo "Terminating..." >&2; exit 1; }
+eval set -- "$OPTS"
+
+version(){
+    printf "%-s\n" "${0##*/} 2021.03
+
+    Copyright (C) 2019 Free Software Foundation, Inc.
+    This is free software; see the source for copying conditions. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+    Written by Yaswant Pradhan." | sed 's/^  //g'
+}
+
+usage(){
+    printf "%-s\n" "Get date from serial day of year (1..366).
+
+    Usage: ${0##*/} [OPTION] DOY [Year]
+
+    Options:
+        -f, --format[=VALUE]  specify output date format (default: %Y%m%d)
+        -h, --help            print this help and exit
+        -v, --version         print version and exit
+
+    DOY: Input day of year (001..366) - must be valid for Year.
+    Year (optional: Year corresponding to DOY (default: current year)
+
+    Examples:
+    $ dayofyear2date 16
+    20210116
+
+    $ dayofyear2date 57 2031
+    20310226
+
+    $ dayofyear2date 16 -f '%F'
+    2021-01-16
+
+    $ dayofyear2date 366 2020
+    20201231
+
+    $ dayofyear2date 366 2021
+    dayofyear2date: invalid day of year '366'
+
+    Report bugs to <yaswant.pradhan@metoffice.gov.uk>" | sed 's/^  //g'
+}
+# ----------------------------------------------------------------------------
+
+fmt="%Y%m%d"
+while true; do
+  case "$1" in
+    -f |--format)  fmt="$2"; shift 2 ;;
+    -h |--help )  usage; exit 0 ;;
+    -v |--version ) version; exit 0 ;;
+    -- )  shift; break ;;
+    * )   break ;;
+  esac
+done
+
+
+[[ $# -eq 0 || $# -gt 3 ]] && usage && exit
+ddd=$(printf "%03d" "${1#0}")
+
+# Parse One parameter argument:
+if [[ $# -eq 1 ]]; then
+    if [[ "${#1}" -eq 7 ]]; then
+        yyyy=${1%???}
+        ddd=${1#$yyyy}
+    else
+        yyyy="$(date +%Y)"
+    fi
+elif [[ $# -eq 2 ]]; then
+    yyyy="$2"
+else
+    usage && exit 1
+fi
+
+maxd=$(date -d "$yyyy-12-31" +%j)
+if (( ddd > maxd )) || (( ddd < 1 )); then
+    echo "${0##*/}: invalid day of year '${ddd}'"
+    exit 1
+fi
+
+
+date -d "$yyyy-01-01 +$ddd days -1 day" +"$fmt"

@@ -76,7 +76,7 @@ else
 fi
 
 maxd=$(date -d "$yyyy-12-31" +%j)
-if (( ddd > maxd )) || (( ddd < 1 )); then
+if (( 10#$ddd > maxd )) || (( 10#$ddd < 1 )); then
     echo "${0##*/}: invalid day of year '${ddd}'"
     exit 1
 fi

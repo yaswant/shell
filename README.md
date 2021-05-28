@@ -55,7 +55,7 @@ sh uninstall.sh PATH  # default PATH=$HOME/ysh
 
 
 ## Versioning
- -->
+-->
 
 ## Authors
 

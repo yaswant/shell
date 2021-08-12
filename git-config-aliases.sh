@@ -16,6 +16,7 @@ git config --global alias.filter "config --get-regexp ^filter."
 git config --global alias.last 'log -1 HEAD'
 git config --global alias.logg 'log --all --decorate --oneline --graph'
 git config --global alias.lsr "!gls() { ls -aR \$(readlink -ev \${1:-\`pwd\`}) 2>/dev/null | grep --color=none -oP '.*?(?=/.git:)' || printf 'No repos found in current directory\n' ; }; gls"
+git config --global alias.list-repos "!gls() { ls -aR \$(readlink -ev \${1:-\`pwd\`}) 2>/dev/null | grep --color=none -oP '.*?(?=/.git:)' || printf 'No repos found in current directory\n' ; }; gls"
 git config --global alias.rpull "!grp() { find -maxdepth \${1:-2} -type d -name .git -printf '%-20h ' -execdir git pull \\;; }; grp"
 git config --global alias.st 'status'
 git config --global alias.unstage 'reset HEAD --'
